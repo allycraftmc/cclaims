@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "container-claims",
+  "version": "${version}",
+  "name": "Container Claims",
+  "description": "Protect and claim your containers",
+  "authors": [
+    "Tert0"
+  ],
+  "contact": {},
+  "license": "AGPL-3.0",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "de.tert0.containerclaims.ContainerClaims"
+    ]
+  },
+  "mixins": [
+    "container-claims.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
