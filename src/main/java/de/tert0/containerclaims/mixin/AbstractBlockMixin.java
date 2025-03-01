@@ -23,7 +23,7 @@ public class AbstractBlockMixin {
         ClaimAccess claimAccess = (ClaimAccess) world.getBlockEntity(pos);
         if(claimAccess == null || !ClaimUtils.isClaimed(claimAccess)) return;
 
-        if(!ClaimUtils.isOwnerOrTrusted(claimAccess, player.getUuid())) {
+        if(!ClaimUtils.canUse(claimAccess, player)) {
             cir.setReturnValue(ActionResult.SUCCESS); // this will prevent the default action
         }
     }

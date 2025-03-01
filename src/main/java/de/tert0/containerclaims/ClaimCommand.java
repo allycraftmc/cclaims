@@ -2,6 +2,7 @@ package de.tert0.containerclaims;
 
 import com.google.common.collect.ImmutableSet;
 import com.mojang.authlib.GameProfile;
+import com.mojang.brigadier.Command;
 import com.mojang.brigadier.LiteralMessage;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -112,6 +113,24 @@ public class ClaimCommand {
 
                                 return entries.size();
                             })))
+                            .then(
+                                    literal("adminmode")
+                                            .requires(source -> source.hasPermissionLevel(3))
+                                            .executes(ctx -> {
+                                                ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+                                                AdminModeAccess adminModeAccess = (AdminModeAccess) player;
+
+                                                adminModeAccess.container_claims$setAdminMode(!adminModeAccess.container_claims$getAdminMode());
+
+                                                if(adminModeAccess.container_claims$getAdminMode()) {
+                                                    ctx.getSource().sendFeedback(() -> Text.of("Enabled Container Claim Admin Mode"), true);
+                                                } else {
+                                                    ctx.getSource().sendFeedback(() -> Text.of("Disabled Container Claim Admin Mode"), true);
+                                                }
+
+                                                return Command.SINGLE_SUCCESS;
+                                            })
+                            )
             );
 
             // Alias
@@ -144,7 +163,7 @@ public class ClaimCommand {
         if(!ClaimUtils.isClaimed(claimAccess)) {
             throw new SimpleCommandExceptionType(new LiteralMessage("The container is not claimed!")).create();
         }
-        if(!ClaimUtils.isOwner(claimAccess, player.getUuid())) {
+        if(!ClaimUtils.isOwnerOrAdmin(claimAccess, player)) {
             throw new SimpleCommandExceptionType(new LiteralMessage("The container is not yours!")).create();
         }
     }

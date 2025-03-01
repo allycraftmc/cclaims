@@ -22,7 +22,7 @@ public class ContainerClaims implements ModInitializer {
             ClaimAccess claimAccess = (ClaimAccess) blockEntity;
             if(blockEntity == null || !ClaimUtils.isClaimed(claimAccess)) return true;
 
-            return ClaimUtils.isOwner(claimAccess, player.getUuid());
+            return ClaimUtils.isOwnerOrAdmin(claimAccess, player);
         });
     }
 }
