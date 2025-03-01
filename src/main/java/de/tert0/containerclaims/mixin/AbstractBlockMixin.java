@@ -6,7 +6,9 @@ import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
+import net.minecraft.util.Colors;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -24,6 +26,7 @@ public class AbstractBlockMixin {
         if(claimAccess == null || !ClaimUtils.isClaimed(claimAccess)) return;
 
         if(!ClaimUtils.canUse(claimAccess, player)) {
+            player.sendMessage(Text.literal("This block is claimed!").withColor(Colors.RED), true);
             cir.setReturnValue(ActionResult.SUCCESS); // this will prevent the default action
         }
     }

@@ -3,6 +3,8 @@ package de.tert0.containerclaims;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.text.Text;
+import net.minecraft.util.Colors;
 import net.minecraft.util.Identifier;
 
 import java.util.Set;
@@ -22,7 +24,12 @@ public class ContainerClaims implements ModInitializer {
             ClaimAccess claimAccess = (ClaimAccess) blockEntity;
             if(blockEntity == null || !ClaimUtils.isClaimed(claimAccess)) return true;
 
-            return ClaimUtils.isOwnerOrAdmin(claimAccess, player);
+            if(!ClaimUtils.isOwnerOrAdmin(claimAccess, player)) {
+                player.sendMessage(Text.literal("This block is claimed!").withColor(Colors.RED), true);
+                return false;
+            }
+
+            return true;
         });
     }
 }
