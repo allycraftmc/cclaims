@@ -4,6 +4,8 @@
   "package": "de.tert0.containerclaims.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "AbstractBlockMixin",
+    "BlockEntityMixin"
   ],
   "injectors": {
     "defaultRequire": 1
