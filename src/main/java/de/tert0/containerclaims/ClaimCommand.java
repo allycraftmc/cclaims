@@ -8,6 +8,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.brigadier.tree.LiteralCommandNode;
+import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.command.argument.GameProfileArgumentType;
@@ -115,7 +116,7 @@ public class ClaimCommand {
                             })))
                             .then(
                                     literal("adminmode")
-                                            .requires(source -> source.hasPermissionLevel(3))
+                                            .requires(Permissions.require("cclaim.adminmode", 3))
                                             .executes(ctx -> {
                                                 ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
                                                 AdminModeAccess adminModeAccess = (AdminModeAccess) player;
