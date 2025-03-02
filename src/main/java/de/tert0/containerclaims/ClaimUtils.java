@@ -16,13 +16,13 @@ public class ClaimUtils {
     public static void claim(ClaimAccess claimAccess, UUID uuid, ServerWorld serverWorld) {
         ClaimComponent claim = new ClaimComponent(uuid, ImmutableSet.of());
 
-        claimAccess.container_claims$setClaim(claim);
+        claimAccess.cclaims$setClaim(claim);
         markClaimed(claimAccess, serverWorld);
 
         BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getPos(), serverWorld);
         if(blockEntity != null) {
             ClaimAccess otherClaimAccess = (ClaimAccess) blockEntity;
-            otherClaimAccess.container_claims$setClaim(claim);
+            otherClaimAccess.cclaims$setClaim(claim);
             markClaimed(otherClaimAccess, serverWorld);
         }
     }
@@ -33,34 +33,34 @@ public class ClaimUtils {
     }
 
     public static void unclaim(ClaimAccess claimAccess, ServerWorld serverWorld) {
-        claimAccess.container_claims$setClaim(null);
+        claimAccess.cclaims$setClaim(null);
         markUnclaimed(claimAccess, serverWorld);
 
         BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getPos(), serverWorld);
         if(blockEntity != null) {
             ClaimAccess otherClaimAccess = (ClaimAccess) blockEntity;
-            otherClaimAccess.container_claims$setClaim(null);
+            otherClaimAccess.cclaims$setClaim(null);
             markUnclaimed(otherClaimAccess, serverWorld);
         }
     }
 
     public static boolean isClaimed(ClaimAccess claimAccess) {
-        return claimAccess.container_claims$getClaim() != null;
+        return claimAccess.cclaims$getClaim() != null;
     }
 
     public static boolean isOwner(ClaimAccess claimAccess, UUID uuid) {
-        return claimAccess.container_claims$getClaim().owner().equals(uuid);
+        return claimAccess.cclaims$getClaim().owner().equals(uuid);
     }
 
     public static boolean isOwnerOrAdmin(ClaimAccess claimAccess, PlayerEntity player) {
-        if(player instanceof AdminModeAccess adminModeAccess && adminModeAccess.container_claims$getAdminMode()) {
+        if(player instanceof AdminModeAccess adminModeAccess && adminModeAccess.cclaims$getAdminMode()) {
             return true;
         }
         return isOwner(claimAccess, player.getUuid());
     }
 
     public static boolean isTrusted(ClaimAccess claimAccess, UUID uuid) {
-        return claimAccess.container_claims$getClaim().trusted().contains(uuid);
+        return claimAccess.cclaims$getClaim().trusted().contains(uuid);
     }
 
     public static boolean canUse(ClaimAccess claimAccess, PlayerEntity player) {

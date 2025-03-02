@@ -10,11 +10,11 @@ public abstract class ServerPlayerEntityMixin implements AdminModeAccess {
     @Unique
     private boolean adminMode = false;
 
-    public boolean container_claims$getAdminMode() {
+    public boolean cclaims$getAdminMode() {
         return this.adminMode;
     }
 
-    public void container_claims$setAdminMode(boolean adminMode) {
+    public void cclaims$setAdminMode(boolean adminMode) {
         this.adminMode = adminMode;
     }
 }

@@ -72,8 +72,8 @@ public class ClaimCommand {
                                     newEntries.add(target.getId());
                                     ctx.getSource().sendFeedback(() -> Text.of("Added " + target.getName() + " as trusted player"), false);
                                 }
-                                claimAccess.container_claims$setClaim(
-                                        claimAccess.container_claims$getClaim()
+                                claimAccess.cclaims$setClaim(
+                                        claimAccess.cclaims$getClaim()
                                                 .addTrusted(newEntries)
                                 );
 
@@ -102,8 +102,8 @@ public class ClaimCommand {
                                     }
                                 }
 
-                                claimAccess.container_claims$setClaim(
-                                        claimAccess.container_claims$getClaim()
+                                claimAccess.cclaims$setClaim(
+                                        claimAccess.cclaims$getClaim()
                                                 .removeTrusted(entries)
                                 );
 
@@ -120,9 +120,9 @@ public class ClaimCommand {
                                                 ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
                                                 AdminModeAccess adminModeAccess = (AdminModeAccess) player;
 
-                                                adminModeAccess.container_claims$setAdminMode(!adminModeAccess.container_claims$getAdminMode());
+                                                adminModeAccess.cclaims$setAdminMode(!adminModeAccess.cclaims$getAdminMode());
 
-                                                if(adminModeAccess.container_claims$getAdminMode()) {
+                                                if(adminModeAccess.cclaims$getAdminMode()) {
                                                     ctx.getSource().sendFeedback(() -> Text.of("Enabled Container Claim Admin Mode"), true);
                                                 } else {
                                                     ctx.getSource().sendFeedback(() -> Text.of("Disabled Container Claim Admin Mode"), true);

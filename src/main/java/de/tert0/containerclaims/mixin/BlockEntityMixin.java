@@ -46,13 +46,13 @@ public abstract class BlockEntityMixin implements ClaimAccess {
 
     @Unique
     @Override
-    public ClaimComponent container_claims$getClaim() {
+    public ClaimComponent cclaims$getClaim() {
         return this.claim;
     }
 
     @Unique
     @Override
-    public void container_claims$setClaim(ClaimComponent claim) {
+    public void cclaims$setClaim(ClaimComponent claim) {
         this.claim = claim;
         this.markDirty();
     }

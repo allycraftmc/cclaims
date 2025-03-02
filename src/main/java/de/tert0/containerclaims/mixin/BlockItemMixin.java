@@ -42,7 +42,7 @@ public abstract class BlockItemMixin {
         if(claimAccess != null && ClaimUtils.isClaimed(claimAccess) && ClaimUtils.isOwnerOrAdmin(claimAccess, player)) {
             ClaimAccess newClaimAccess = (ClaimAccess) world.getBlockEntity(pos);
             if(newClaimAccess != null) {
-                newClaimAccess.container_claims$setClaim(claimAccess.container_claims$getClaim());
+                newClaimAccess.cclaims$setClaim(claimAccess.cclaims$getClaim());
                 ClaimUtils.markClaimed(newClaimAccess, (ServerWorld) world);
             } else {
                 player.sendMessage(Text.literal("Unable to apply claim to double chest. Please report this issue!").withColor(Colors.RED), false);
