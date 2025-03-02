@@ -11,6 +11,7 @@ import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.command.argument.GameProfileArgumentType;
+import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
@@ -140,8 +141,7 @@ public class ClaimCommand {
 
     private static ClaimAccess getFocusedClaimAccess(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
-        // TODO get reach from attribute
-        if(!(player.raycast(5.0f, 1.0f, false) instanceof BlockHitResult result)) {
+        if(!(player.raycast(player.getAttributeValue(EntityAttributes.BLOCK_INTERACTION_RANGE), 1.0f, false) instanceof BlockHitResult result)) {
             throw new SimpleCommandExceptionType(new LiteralMessage("You have to look at a container block")).create();
         }
         BlockPos pos = result.getBlockPos();
