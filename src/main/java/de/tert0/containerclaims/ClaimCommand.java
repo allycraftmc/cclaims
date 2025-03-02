@@ -42,7 +42,7 @@ public class ClaimCommand {
                                                     throw new SimpleCommandExceptionType(new LiteralMessage("The container is already claimed!")).create();
                                                 }
 
-                                                claimAccess.container_claims$setClaim(new ClaimComponent(player.getUuid(), ImmutableSet.of()));
+                                                ClaimUtils.claim(claimAccess, player.getUuid(), player.getServerWorld());
                                                 ctx.getSource().sendFeedback(() -> Text.of("Claimed container"), false);
                                                 return 1;
                                             })
@@ -55,7 +55,7 @@ public class ClaimCommand {
 
                                                 checkForOwnedClaim(claimAccess, player);
 
-                                                claimAccess.container_claims$setClaim(null);
+                                                ClaimUtils.unclaim(claimAccess, player.getServerWorld());
                                                 ctx.getSource().sendFeedback(() -> Text.of("Unclaimed container"), false);
                                                 return 1;
                                             })

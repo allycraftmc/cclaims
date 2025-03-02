@@ -3,6 +3,7 @@ package de.tert0.containerclaims;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Colors;
 import net.minecraft.util.Identifier;
@@ -29,6 +30,7 @@ public class ContainerClaims implements ModInitializer {
                 return false;
             }
 
+            ClaimUtils.unclaim(claimAccess, (ServerWorld) world);
             return true;
         });
     }
