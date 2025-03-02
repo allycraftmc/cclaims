@@ -73,6 +73,6 @@ public class GlobalClaimState extends PersistentState {
     public static GlobalClaimState getWorldState(ServerWorld world) {
         PersistentStateManager persistentStateManager = world.getPersistentStateManager();
 
-        return persistentStateManager.getOrCreate(STATE_TYPE, ContainerClaims.MOD_ID);
+        return persistentStateManager.getOrCreate(STATE_TYPE, ContainerClaimMod.MOD_ID);
     }
 }

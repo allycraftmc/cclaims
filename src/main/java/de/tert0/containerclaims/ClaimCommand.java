@@ -1,6 +1,5 @@
 package de.tert0.containerclaims;
 
-import com.google.common.collect.ImmutableSet;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.LiteralMessage;
@@ -149,7 +148,7 @@ public class ClaimCommand {
         if(blockEntity == null) {
             throw new SimpleCommandExceptionType(new LiteralMessage("You have to look at a container block")).create();
         }
-        if(!ContainerClaims.SUPPORTED_BLOCK_ENTITIES.contains(blockEntity.getType())) {
+        if(!ContainerClaimMod.SUPPORTED_BLOCK_ENTITIES.contains(blockEntity.getType())) {
             throw new SimpleCommandExceptionType(new LiteralMessage("This block type is not supported")).create();
         }
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "container-claims",
+  "id": "cclaims",
   "version": "${version}",
   "name": "Container Claims",
   "description": "Protect and claim your containers",
@@ -12,11 +12,11 @@
   "environment": "server",
   "entrypoints": {
     "main": [
-      "de.tert0.containerclaims.ContainerClaims"
+      "de.tert0.containerclaims.ContainerClaimMod"
     ]
   },
   "mixins": [
-    "container-claims.mixins.json"
+    "cclaims.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=${loader_version}",

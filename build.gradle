@@ -14,9 +14,7 @@ loom {
     splitEnvironmentSourceSets()
 
     mods {
-        "container-claims" {
-            sourceSet sourceSets.main
-        }
+        "cclaims"
     }
 }
 

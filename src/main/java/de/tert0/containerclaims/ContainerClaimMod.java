@@ -10,9 +10,9 @@ import net.minecraft.util.Identifier;
 
 import java.util.Set;
 
-public class ContainerClaims implements ModInitializer {
+public class ContainerClaimMod implements ModInitializer {
 
-    public static final String MOD_ID = "container-claims";
+    public static final String MOD_ID = "cclaims";
     public static final Identifier CLAIM_DATA_ID = Identifier.of(MOD_ID, "claim");
     // TODO Hopper, Furnaces, Shulker boxes, brewing stand, Crafter, Dispenser/Dropper, ...
     public static final Set<BlockEntityType<?>> SUPPORTED_BLOCK_ENTITIES = Set.of(BlockEntityType.CHEST, BlockEntityType.BARREL, BlockEntityType.TRAPPED_CHEST);

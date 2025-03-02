@@ -2,7 +2,7 @@ package de.tert0.containerclaims.mixin;
 
 import de.tert0.containerclaims.ClaimComponent;
 import de.tert0.containerclaims.ClaimAccess;
-import de.tert0.containerclaims.ContainerClaims;
+import de.tert0.containerclaims.ContainerClaimMod;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.nbt.*;
 import net.minecraft.registry.RegistryWrapper;
@@ -30,14 +30,14 @@ public abstract class BlockEntityMixin implements ClaimAccess {
         NbtElement nbtClaim = ClaimComponent.CODEC.encodeStart(NbtOps.INSTANCE, this.claim)
                 .resultOrPartial(LOGGER::error)
                 .orElseThrow();
-        nbt.put(ContainerClaims.CLAIM_DATA_ID.toString(), nbtClaim);
+        nbt.put(ContainerClaimMod.CLAIM_DATA_ID.toString(), nbtClaim);
     }
 
     @Inject(method = "readNbt", at = @At("RETURN"))
     private void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries, CallbackInfo ci) {
-        if(!nbt.contains(ContainerClaims.CLAIM_DATA_ID.toString(), NbtElement.COMPOUND_TYPE)) return;
+        if(!nbt.contains(ContainerClaimMod.CLAIM_DATA_ID.toString(), NbtElement.COMPOUND_TYPE)) return;
 
-        NbtCompound nbtClaim = nbt.getCompound(ContainerClaims.CLAIM_DATA_ID.toString());
+        NbtCompound nbtClaim = nbt.getCompound(ContainerClaimMod.CLAIM_DATA_ID.toString());
         this.claim = ClaimComponent.CODEC.parse(NbtOps.INSTANCE, nbtClaim)
                 .resultOrPartial(LOGGER::error)
                 .orElseThrow();
