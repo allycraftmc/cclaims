@@ -140,6 +140,7 @@ public class ClaimCommand {
 
     private static ClaimAccess getFocusedClaimAccess(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        // TODO get reach from attribute
         if(!(player.raycast(5.0f, 1.0f, false) instanceof BlockHitResult result)) {
             throw new SimpleCommandExceptionType(new LiteralMessage("You have to look at a container block")).create();
         }

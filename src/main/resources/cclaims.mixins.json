@@ -6,6 +6,7 @@
   "mixins": [
     "AbstractBlockMixin",
     "BlockEntityMixin",
+    "BlockItemMixin",
     "ServerPlayerEntityMixin"
   ],
   "injectors": {

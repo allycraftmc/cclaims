@@ -21,6 +21,7 @@ public abstract class BlockEntityMixin implements ClaimAccess {
     public abstract void markDirty();
 
     @Shadow @Final private static Logger LOGGER;
+
     @Unique
     private ClaimComponent claim;
 
@@ -46,7 +47,7 @@ public abstract class BlockEntityMixin implements ClaimAccess {
     @Unique
     @Override
     public ClaimComponent container_claims$getClaim() {
-       return this.claim;
+        return this.claim;
     }
 
     @Unique

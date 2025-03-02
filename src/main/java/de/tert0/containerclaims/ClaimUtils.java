@@ -8,18 +8,40 @@ import net.minecraft.server.world.ServerWorld;
 import java.util.UUID;
 
 public class ClaimUtils {
-    public static void claim(ClaimAccess claimAccess, UUID uuid, ServerWorld serverWorld) {
-        BlockEntity blockEntity = (BlockEntity) claimAccess; // TODO
-
-        claimAccess.container_claims$setClaim(new ClaimComponent(uuid, ImmutableSet.of()));
+    public static void markClaimed(ClaimAccess claimAccess, ServerWorld serverWorld) {
+        BlockEntity blockEntity = (BlockEntity) claimAccess;
         GlobalClaimState.getWorldState(serverWorld).addPosition(blockEntity.getPos());
     }
 
-    public static void unclaim(ClaimAccess claimAccess, ServerWorld serverWorld) {
-        BlockEntity blockEntity = (BlockEntity) claimAccess; // TODO
+    public static void claim(ClaimAccess claimAccess, UUID uuid, ServerWorld serverWorld) {
+        ClaimComponent claim = new ClaimComponent(uuid, ImmutableSet.of());
 
-        claimAccess.container_claims$setClaim(null);
+        claimAccess.container_claims$setClaim(claim);
+        markClaimed(claimAccess, serverWorld);
+
+        BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getPos(), serverWorld);
+        if(blockEntity != null) {
+            ClaimAccess otherClaimAccess = (ClaimAccess) blockEntity;
+            otherClaimAccess.container_claims$setClaim(claim);
+            markClaimed(otherClaimAccess, serverWorld);
+        }
+    }
+
+    public static void markUnclaimed(ClaimAccess claimAccess, ServerWorld serverWorld) {
+        BlockEntity blockEntity = (BlockEntity) claimAccess;
         GlobalClaimState.getWorldState(serverWorld).removePosition(blockEntity.getPos());
+    }
+
+    public static void unclaim(ClaimAccess claimAccess, ServerWorld serverWorld) {
+        claimAccess.container_claims$setClaim(null);
+        markUnclaimed(claimAccess, serverWorld);
+
+        BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getPos(), serverWorld);
+        if(blockEntity != null) {
+            ClaimAccess otherClaimAccess = (ClaimAccess) blockEntity;
+            otherClaimAccess.container_claims$setClaim(null);
+            markUnclaimed(otherClaimAccess, serverWorld);
+        }
     }
 
     public static boolean isClaimed(ClaimAccess claimAccess) {

@@ -14,8 +14,8 @@ public class ContainerClaimMod implements ModInitializer {
 
     public static final String MOD_ID = "cclaims";
     public static final Identifier CLAIM_DATA_ID = Identifier.of(MOD_ID, "claim");
-    // TODO Hopper, Furnaces, Shulker boxes, brewing stand, Crafter, Dispenser/Dropper, ...
-    public static final Set<BlockEntityType<?>> SUPPORTED_BLOCK_ENTITIES = Set.of(BlockEntityType.CHEST, BlockEntityType.BARREL, BlockEntityType.TRAPPED_CHEST);
+    // TODO Hopper, Furnaces, Shulker boxes, brewing stand, Crafter, Dispenser/Dropper, Trapped Chest, ...
+    public static final Set<BlockEntityType<?>> SUPPORTED_BLOCK_ENTITIES = Set.of(BlockEntityType.CHEST, BlockEntityType.BARREL);
 
     @Override
     public void onInitialize() {
@@ -30,8 +30,16 @@ public class ContainerClaimMod implements ModInitializer {
                 return false;
             }
 
-            ClaimUtils.unclaim(claimAccess, (ServerWorld) world);
             return true;
+        });
+
+        PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
+            ClaimAccess claimAccess = (ClaimAccess) blockEntity;
+            if(blockEntity == null || !ClaimUtils.isClaimed(claimAccess)) return;
+
+            if(!ClaimUtils.isOwnerOrAdmin(claimAccess, player)) return;
+
+            ClaimUtils.markUnclaimed(claimAccess, (ServerWorld) world);
         });
     }
 }
