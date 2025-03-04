@@ -14,7 +14,10 @@ import net.minecraft.command.argument.GameProfileArgumentType;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
+import net.minecraft.util.Colors;
+import net.minecraft.util.UserCache;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 
@@ -30,7 +33,51 @@ public class ClaimCommand {
                     literal("containerclaim")
                             .then(
                                     literal("info")
-                                            .executes(ctx -> -1) // TODO
+                                            .executes(ctx -> {
+                                                ClaimAccess claimAccess = getFocusedClaimAccess(ctx);
+                                                ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+
+                                                MutableText text = Text.literal("");
+                                                text.append(Text.literal("Container Claim Info\n").withColor(Colors.CYAN));
+                                                text.append("-".repeat(20) + "\n");
+
+                                                if(!ClaimUtils.isClaimed(claimAccess)) {
+                                                   text.append(Text.literal("This container is not claimed!").withColor(Colors.LIGHT_RED));
+                                                } else if(!ClaimUtils.canUse(claimAccess, player) && !Permissions.check(player, "cclaim.info.admin", 2)) {
+                                                    text.append(Text.literal("This container is claimed!").withColor(Colors.LIGHT_YELLOW));
+                                                } else {
+                                                    UserCache userCache = ctx.getSource().getServer().getUserCache();
+
+                                                    text.append("Owner: ");
+                                                    UUID ownerUuid = claimAccess.cclaims$getClaim().owner();
+                                                    text.append(Text.literal(
+                                                            Optional.ofNullable(userCache)
+                                                                    .flatMap(uc -> uc.getByUuid(ownerUuid))
+                                                                    .map(GameProfile::getName)
+                                                                    .orElse(ownerUuid.toString())
+                                                    ).withColor(Colors.GREEN));
+                                                    text.append("\n");
+                                                    text.append("Trusted: ");
+
+                                                    Collection<UUID> trustedUuids = claimAccess.cclaims$getClaim().trusted();
+                                                    if(trustedUuids.isEmpty()) {
+                                                        text.append(Text.literal("-_-").withColor(Colors.YELLOW));
+                                                    } else {
+                                                        for(UUID trustedUuid : trustedUuids) {
+                                                            text.append(Text.of("\n  - "));
+                                                            text.append(Text.literal(
+                                                                    Optional.ofNullable(userCache)
+                                                                            .flatMap(uc -> uc.getByUuid(trustedUuid))
+                                                                            .map(GameProfile::getName)
+                                                                            .orElse(trustedUuid.toString())
+                                                            ).withColor(Colors.LIGHT_YELLOW));
+                                                        }
+                                                    }
+                                                }
+
+                                                ctx.getSource().sendFeedback(() -> text, false);
+                                                return Command.SINGLE_SUCCESS;
+                                            })
                             )
                             .then(
                                     literal("claim")
