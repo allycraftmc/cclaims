@@ -22,11 +22,15 @@ import net.minecraft.text.HoverEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Colors;
+import net.minecraft.util.DateTimeFormatters;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.UserCache;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static net.minecraft.server.command.CommandManager.argument;
@@ -78,6 +82,15 @@ public class ClaimCommand {
                                                                             .orElse(trustedUuid.toString())
                                                             ).withColor(Colors.LIGHT_YELLOW));
                                                         }
+                                                    }
+
+                                                    if(Permissions.check(player, "cclaim.info.admin", 2)) {
+                                                        String formattedTimestamp = DateTimeFormatter.ISO_DATE_TIME
+                                                                .withZone(ZoneOffset.UTC)
+                                                                .format(claimAccess.cclaims$getClaim().timestamp());
+
+                                                        text.append("\n");
+                                                        text.append("Timestamp: " + formattedTimestamp);
                                                     }
                                                 }
 

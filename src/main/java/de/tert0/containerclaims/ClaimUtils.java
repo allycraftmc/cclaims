@@ -5,6 +5,7 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public class ClaimUtils {
@@ -14,7 +15,7 @@ public class ClaimUtils {
     }
 
     public static void claim(ClaimAccess claimAccess, UUID uuid, ServerWorld serverWorld) {
-        ClaimComponent claim = new ClaimComponent(uuid, ImmutableSet.of());
+        ClaimComponent claim = new ClaimComponent(uuid, Instant.now(), ImmutableSet.of());
 
         claimAccess.cclaims$setClaim(claim);
         markClaimed(claimAccess, serverWorld);

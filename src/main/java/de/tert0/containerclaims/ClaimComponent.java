@@ -6,15 +6,17 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.Uuids;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
 
-public record ClaimComponent(UUID owner, ImmutableSet<UUID> trusted) {
+public record ClaimComponent(UUID owner, Instant timestamp, ImmutableSet<UUID> trusted) {
     public static final Codec<ClaimComponent> CODEC = RecordCodecBuilder
             .create(instance ->
                     instance
                             .group(
                                     Uuids.INT_STREAM_CODEC.fieldOf("owner").forGetter(ClaimComponent::owner),
+                                    Codec.LONG.xmap(Instant::ofEpochMilli, Instant::toEpochMilli).fieldOf("timestamp").forGetter(ClaimComponent::timestamp),
                                     Uuids.INT_STREAM_CODEC.listOf().xmap(ImmutableSet::copyOf, ImmutableCollection::asList)
                                             .fieldOf("trusted").forGetter(ClaimComponent::trusted)
                             )
@@ -22,7 +24,7 @@ public record ClaimComponent(UUID owner, ImmutableSet<UUID> trusted) {
             );
 
     public ClaimComponent withTrusted(ImmutableSet<UUID> trusted) {
-        return new ClaimComponent(this.owner, trusted);
+        return new ClaimComponent(this.owner, this.timestamp, trusted);
     }
 
     public ClaimComponent addTrusted(Collection<UUID> newEntries) {
