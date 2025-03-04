@@ -8,6 +8,7 @@
     "BlockEntityMixin",
     "BlockItemMixin",
     "HopperBlockEntityMixin",
+    "PistonBlockMixin",
     "ServerPlayerEntityMixin"
   ],
   "injectors": {
