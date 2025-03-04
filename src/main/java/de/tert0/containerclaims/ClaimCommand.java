@@ -10,13 +10,19 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.command.argument.GameProfileArgumentType;
 import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Colors;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.UserCache;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -61,7 +67,7 @@ public class ClaimCommand {
 
                                                     Collection<UUID> trustedUuids = claimAccess.cclaims$getClaim().trusted();
                                                     if(trustedUuids.isEmpty()) {
-                                                        text.append(Text.literal("-_-").withColor(Colors.YELLOW));
+                                                        text.append(Text.literal("¯\\_(ツ)_/¯").withColor(Colors.YELLOW));
                                                     } else {
                                                         for(UUID trustedUuid : trustedUuids) {
                                                             text.append(Text.of("\n  - "));
@@ -178,6 +184,55 @@ public class ClaimCommand {
 
                                                 return Command.SINGLE_SUCCESS;
                                             })
+                            )
+                            .then(
+                                    literal("list").then(argument("dimension", DimensionArgumentType.dimension())
+                                                    .requires(Permissions.require("cclaim.list", 2))
+                                                    .executes(ctx -> {
+                                                        ServerWorld serverWorld = DimensionArgumentType.getDimensionArgument(ctx, "dimension");
+                                                        Collection<BlockPos> positions = GlobalClaimState.getWorldState(serverWorld).getPositions();
+                                                        String dimensionName = serverWorld.getDimensionEntry().getKey()
+                                                                .map(RegistryKey::getValue)
+                                                                .map(Identifier::getPath)
+                                                                .orElse("[unknown]");
+
+                                                        MutableText text = Text.literal("");
+                                                        text.append(
+                                                                Text.literal("Container Claim List - " + dimensionName + "\n")
+                                                                        .withColor(Colors.CYAN)
+                                                        );
+                                                        text.append("-".repeat(20) + "\n");
+                                                        text.append(
+                                                                Text.literal("Note: This list is not necessarily complete and can be wrong")
+                                                                        .withColor(Colors.YELLOW)
+                                                        );
+
+                                                        if(positions.isEmpty()) {
+                                                            text.append(
+                                                                    Text.literal("\nNo registered claims")
+                                                                            .withColor(Colors.LIGHT_RED)
+                                                            );
+                                                        } else {
+                                                            for(BlockPos pos : positions) {
+                                                                String formattedPosition = pos.getX() + " " + pos.getY() + " " + pos.getZ();
+                                                                text.append(Text.of("\n  - "));
+                                                                text.append(
+                                                                        Text.literal(formattedPosition)
+                                                                                .styled(
+                                                                                        style -> style
+                                                                                                .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/tp " + formattedPosition))
+                                                                                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Click to teleport")))
+                                                                                                .withColor(Colors.GREEN)
+                                                                                )
+                                                                );
+                                                            }
+                                                        }
+
+                                                        ctx.getSource().sendFeedback(() -> text, false);
+
+                                                        return Command.SINGLE_SUCCESS;
+                                                    })
+                                            )
                             )
             );
 
