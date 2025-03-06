@@ -44,8 +44,13 @@ public class ClaimCommand {
 
     public static void init() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            LiteralCommandNode<ServerCommandSource> commandNode = dispatcher.register(
-                    literal("containerclaim")
+            dispatcher.register(
+                    literal("cclaim")
+                            .executes(ClaimCommand::helpCommand)
+                            .then(
+                                    literal("help")
+                                            .executes(ClaimCommand::helpCommand)
+                            )
                             .then(
                                     literal("info")
                                             .executes(ClaimCommand::infoCommand)
@@ -79,6 +84,7 @@ public class ClaimCommand {
                             )
                             .then(
                                     literal("list")
+                                            .requires(Permissions.require("cclaim.list", 2))
                                             .executes(ctx -> ClaimCommand.listCommand(ctx, ctx.getSource().getPlayerOrThrow().getServerWorld()))
                                             .then(
                                                     argument("dimension", DimensionArgumentType.dimension())
@@ -87,9 +93,6 @@ public class ClaimCommand {
                                             )
                             )
             );
-
-            // Alias
-            dispatcher.register(literal("cclaim").redirect(commandNode));
         });
     }
 
@@ -121,6 +124,58 @@ public class ClaimCommand {
         if(!ClaimUtils.isOwnerOrAdmin(claimAccess, player)) {
             throw NOT_OWNER.create();
         }
+    }
+
+    private static int helpCommand(CommandContext<ServerCommandSource> ctx) {
+        MutableText text = Text.literal("");
+        text.append(Text.literal("Container Claim Mod - Help\n").withColor(Colors.CYAN));
+        text.append("-".repeat(20) + "\n");
+        text.append("This can be used to claim container blocks like chests or barrels.\n");
+        text.append("To claim a container block, look at the block and run ");
+        text.append(
+                Text.literal("/cclaim claim\n")
+                        .withColor(Colors.YELLOW)
+                        .styled(
+                                style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/cclaim claim"))
+                        )
+        );
+        text.append(
+                Text.literal("/cclaim unlaim")
+                        .withColor(Colors.YELLOW)
+                        .styled(
+                                style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/cclaim unclaim"))
+                        )
+        );
+        text.append(" can be used to unclaim a container\n");
+        text.append("You can allow others to use a claimed container using ");
+        text.append(
+                Text.literal("/cclaim trust <player>")
+                        .withColor(Colors.YELLOW)
+                        .styled(
+                                style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/cclaim trust "))
+                        )
+        );
+        text.append(". To revoke these permissions, you can use ");
+        text.append(
+                Text.literal("/cclaim untrust <player>")
+                        .withColor(Colors.YELLOW)
+                        .styled(
+                                style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/cclaim untrust "))
+                        )
+        );
+        text.append("\n");
+        text.append("To get information about a claim, you can use ");
+        text.append(
+                Text.literal("/cclaim info")
+                        .withColor(Colors.YELLOW)
+                        .styled(
+                                style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/cclaim info"))
+                        )
+        );
+        text.append(".\n");
+
+        ctx.getSource().sendFeedback(() -> text, false);
+        return Command.SINGLE_SUCCESS;
     }
 
     private static int infoCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
