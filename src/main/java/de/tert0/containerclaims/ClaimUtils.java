@@ -6,6 +6,7 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.UUID;
 
 public class ClaimUtils {
@@ -42,6 +43,30 @@ public class ClaimUtils {
             ClaimAccess otherClaimAccess = (ClaimAccess) blockEntity;
             otherClaimAccess.cclaims$setClaim(null);
             markUnclaimed(otherClaimAccess, serverWorld);
+        }
+    }
+
+    public static void trust(ClaimAccess claimAccess, Collection<UUID> entries) {
+        ClaimComponent claim = claimAccess.cclaims$getClaim()
+                .addTrusted(entries);
+        claimAccess.cclaims$setClaim(claim);
+
+        BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getPos(), ((BlockEntity) claimAccess).getWorld());
+        if(blockEntity != null) {
+            ClaimAccess otherClaimAccess = (ClaimAccess) blockEntity;
+            otherClaimAccess.cclaims$setClaim(claim);
+        }
+    }
+
+    public static void untrust(ClaimAccess claimAccess, Collection<UUID> entries) {
+        ClaimComponent claim = claimAccess.cclaims$getClaim()
+                .removeTrusted(entries);
+        claimAccess.cclaims$setClaim(claim);
+
+        BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getPos(), ((BlockEntity) claimAccess).getWorld());
+        if(blockEntity != null) {
+            ClaimAccess otherClaimAccess = (ClaimAccess) blockEntity;
+            otherClaimAccess.cclaims$setClaim(claim);
         }
     }
 

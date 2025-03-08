@@ -6,7 +6,6 @@ import com.mojang.brigadier.LiteralMessage;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
-import com.mojang.brigadier.tree.LiteralCommandNode;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.block.entity.BlockEntity;
@@ -268,10 +267,7 @@ public class ClaimCommand {
             entries.add(target.getId());
             ctx.getSource().sendFeedback(() -> Text.of("Added " + target.getName() + " as trusted player"), false);
         }
-        claimAccess.cclaims$setClaim(
-                claimAccess.cclaims$getClaim()
-                        .addTrusted(entries)
-        );
+        ClaimUtils.trust(claimAccess, entries);
 
         if(targets.isEmpty()) {
             ctx.getSource().sendFeedback(() -> Text.of("No targets found"), false);
@@ -296,11 +292,7 @@ public class ClaimCommand {
                 ctx.getSource().sendFeedback(() -> Text.of(target.getName() + " was not trusted"), false);
             }
         }
-
-        claimAccess.cclaims$setClaim(
-                claimAccess.cclaims$getClaim()
-                        .removeTrusted(entries)
-        );
+        ClaimUtils.untrust(claimAccess, entries);
 
         if(entries.isEmpty()) {
             ctx.getSource().sendFeedback(() -> Text.of("No player to untrust found"), false);
