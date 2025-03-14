@@ -3,6 +3,7 @@ package de.tert0.containerclaims;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.LiteralMessage;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
@@ -12,7 +13,6 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.command.argument.GameProfileArgumentType;
 import net.minecraft.entity.attribute.EntityAttributes;
-import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -40,6 +40,10 @@ public class ClaimCommand {
     private static final SimpleCommandExceptionType NOT_CLAIMED = new SimpleCommandExceptionType(new LiteralMessage("The container is not claimed!"));
     private static final SimpleCommandExceptionType NOT_OWNER = new SimpleCommandExceptionType(new LiteralMessage("The container is not yours!"));
     private static final SimpleCommandExceptionType ALREADY_CLAIMED = new SimpleCommandExceptionType(new LiteralMessage("The container is already claimed!"));
+    private static final SimpleCommandExceptionType PAGE_OUT_OF_BOUNDS = new SimpleCommandExceptionType(new LiteralMessage("Page out of bounds"));
+    private static final SimpleCommandExceptionType MISSING_DIMENSION_REGISTRY_KEY = new SimpleCommandExceptionType(new LiteralMessage("Internal Error. Dimension has no Registry Key"));
+
+    private static final int LIST_PAGE_SIZE = 8;
 
     public static void init() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
@@ -84,11 +88,17 @@ public class ClaimCommand {
                             .then(
                                     literal("list")
                                             .requires(Permissions.require("cclaim.list", 2))
-                                            .executes(ctx -> ClaimCommand.listCommand(ctx, ctx.getSource().getPlayerOrThrow().getServerWorld()))
+                                            .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), ctx.getSource().getPlayerOrThrow().getServerWorld(), 1))
                                             .then(
                                                     argument("dimension", DimensionArgumentType.dimension())
-                                                            .requires(Permissions.require("cclaim.list", 2))
-                                                            .executes(ctx -> ClaimCommand.listCommand(ctx, DimensionArgumentType.getDimensionArgument(ctx, "dimension")))
+                                                            .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), DimensionArgumentType.getDimensionArgument(ctx, "dimension"), 1))
+                                                            .then(
+                                                                    argument("page", IntegerArgumentType.integer(1))
+                                                                            .executes(
+                                                                                    ctx ->
+                                                                                            ClaimCommand.listCommand(ctx.getSource(), DimensionArgumentType.getDimensionArgument(ctx, "dimension"), IntegerArgumentType.getInteger(ctx, "page"))
+                                                                            )
+                                                            )
                                             )
                             )
             );
@@ -316,22 +326,22 @@ public class ClaimCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int listCommand(CommandContext<ServerCommandSource> ctx, ServerWorld serverWorld) throws CommandSyntaxException {
-        Collection<BlockPos> positions = GlobalClaimState.getWorldState(serverWorld).getPositions();
-        String dimensionName = serverWorld.getDimensionEntry().getKey()
-                .map(RegistryKey::getValue)
-                .map(Identifier::getPath)
-                .orElse("[unknown]");
+    private static int listCommand(ServerCommandSource source, ServerWorld serverWorld, int page) throws CommandSyntaxException {
+        List<BlockPos> positions = GlobalClaimState.getWorldState(serverWorld).getPositions()
+                .stream()
+                .sorted() // TODO maybe some kind of 3d spiral around the origin
+                .toList();
+        Identifier dimension = serverWorld.getDimensionEntry().getKey()
+                .orElseThrow(MISSING_DIMENSION_REGISTRY_KEY::create)
+                .getValue();
+        String dimensionName = dimension.getPath();
+
+        int totalPageCount = Math.ceilDiv(positions.size(), LIST_PAGE_SIZE);
 
         MutableText text = Text.literal("");
         text.append(
-                Text.literal("Container Claim List - " + dimensionName + "\n")
+                Text.literal("--- Container Claims - " + dimensionName+ " (" + positions.size() + ") ---")
                         .withColor(Colors.CYAN)
-        );
-        text.append("-".repeat(20) + "\n");
-        text.append(
-                Text.literal("Note: This list is not necessarily complete and can be wrong")
-                        .withColor(Colors.YELLOW)
         );
 
         if(positions.isEmpty()) {
@@ -340,22 +350,53 @@ public class ClaimCommand {
                             .withColor(Colors.LIGHT_RED)
             );
         } else {
-            for(BlockPos pos : positions) {
+            if(page > totalPageCount) {
+                throw PAGE_OUT_OF_BOUNDS.create();
+            }
+
+            for(BlockPos pos : positions.subList((page - 1) * LIST_PAGE_SIZE, Math.min(page * LIST_PAGE_SIZE, positions.size()))) {
                 String formattedPosition = pos.getX() + " " + pos.getY() + " " + pos.getZ();
                 text.append(Text.of("\n  - "));
                 text.append(
                         Text.literal(formattedPosition)
                                 .styled(
                                         style -> style
-                                                .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/tp " + formattedPosition))
+                                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tp " + formattedPosition))
                                                 .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Click to teleport")))
                                                 .withColor(Colors.GREEN)
                                 )
                 );
+                text.append(
+                        Text.literal(" (Copy)")
+                                .withColor(Colors.LIGHT_GRAY)
+                                .styled(style -> style
+                                        .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, formattedPosition))
+                                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Click to copy")))
+                                )
+                );
             }
+
+            Text btnPrev = (page > 1) ? Text.literal("<<")
+                            .styled(style -> style
+                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/cclaim list " + dimension + " " + (page - 1)))
+                                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Previous Page")))
+                            ) : Text.literal("<<");
+            Text btnNext = (page + 1 <= totalPageCount) ? Text.literal(">>")
+                    .styled(style -> style
+                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/cclaim list " + dimension + " " + (page + 1)))
+                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Next Page")))
+                    ) : Text.literal(">>");
+            text.append(
+                    Text.literal("\n----- ")
+                            .withColor(Colors.CYAN)
+                            .append(btnPrev)
+                            .append(Text.of(" Page " + page + " of " + totalPageCount + " "))
+                            .append(btnNext)
+                            .append(" -----")
+            );
         }
 
-        ctx.getSource().sendFeedback(() -> text, false);
+        source.sendFeedback(() -> text, false);
 
         return Command.SINGLE_SUCCESS;
     }
