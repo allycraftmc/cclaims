@@ -99,6 +99,13 @@ public class ClaimCommand {
                                                                                             ClaimCommand.listCommand(ctx.getSource(), DimensionArgumentType.getDimensionArgument(ctx, "dimension"), IntegerArgumentType.getInteger(ctx, "page"))
                                                                             )
                                                             )
+                                                            .then(
+                                                                    literal("all")
+                                                                            .executes(
+                                                                                    ctx ->
+                                                                                            ClaimCommand.listCommand(ctx.getSource(), DimensionArgumentType.getDimensionArgument(ctx, "dimension"), -1)
+                                                                            )
+                                                            )
                                             )
                             )
             );
@@ -353,8 +360,11 @@ public class ClaimCommand {
             if(page > totalPageCount) {
                 throw PAGE_OUT_OF_BOUNDS.create();
             }
+            if(page != -1) {
+                positions = positions.subList((page - 1) * LIST_PAGE_SIZE, Math.min(page * LIST_PAGE_SIZE, positions.size()));
+            }
 
-            for(BlockPos pos : positions.subList((page - 1) * LIST_PAGE_SIZE, Math.min(page * LIST_PAGE_SIZE, positions.size()))) {
+            for(BlockPos pos : positions) {
                 String formattedPosition = pos.getX() + " " + pos.getY() + " " + pos.getZ();
                 text.append(Text.of("\n  - "));
                 text.append(
@@ -376,24 +386,28 @@ public class ClaimCommand {
                 );
             }
 
-            Text btnPrev = (page > 1) ? Text.literal("<<")
-                            .styled(style -> style
-                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/cclaim list " + dimension + " " + (page - 1)))
-                                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Previous Page")))
-                            ) : Text.literal("<<");
-            Text btnNext = (page + 1 <= totalPageCount) ? Text.literal(">>")
-                    .styled(style -> style
-                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/cclaim list " + dimension + " " + (page + 1)))
-                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Next Page")))
-                    ) : Text.literal(">>");
-            text.append(
-                    Text.literal("\n----- ")
-                            .withColor(Colors.CYAN)
-                            .append(btnPrev)
-                            .append(Text.of(" Page " + page + " of " + totalPageCount + " "))
-                            .append(btnNext)
-                            .append(" -----")
-            );
+            if(page != -1) {
+                Text btnPrev = (page > 1) ? Text.literal("<<")
+                        .styled(style -> style
+                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/cclaim list " + dimension + " " + (page - 1)))
+                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Previous Page")))
+                        ) : Text.literal("<<");
+                Text btnNext = (page + 1 <= totalPageCount) ? Text.literal(">>")
+                        .styled(style -> style
+                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/cclaim list " + dimension + " " + (page + 1)))
+                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Next Page")))
+                        ) : Text.literal(">>");
+                text.append(
+                        Text.literal("\n----- ")
+                                .withColor(Colors.CYAN)
+                                .append(btnPrev)
+                                .append(Text.of(" Page " + page + " of " + totalPageCount + " "))
+                                .append(btnNext)
+                                .append(" -----")
+                );
+            } else {
+                text.append(Text.literal("\n" + "-".repeat(30)).withColor(Colors.CYAN));
+            }
         }
 
         source.sendFeedback(() -> text, false);
