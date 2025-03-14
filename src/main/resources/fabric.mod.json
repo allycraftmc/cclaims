@@ -22,5 +22,10 @@
     "fabricloader": ">=${loader_version}",
     "fabric": "*",
     "minecraft": "${minecraft_version}"
+  },
+  "custom": {
+    "lithium:options": {
+      "mixin.block.hopper": false
+    }
   }
 }
