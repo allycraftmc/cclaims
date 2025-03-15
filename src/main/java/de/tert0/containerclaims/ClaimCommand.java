@@ -365,6 +365,29 @@ public class ClaimCommand {
             }
 
             for(BlockPos pos : positions) {
+                Optional<Text> extraText = Optional.empty();
+                if(serverWorld.isPosLoaded(pos)) {
+                    ClaimAccess claimAccess = (ClaimAccess) serverWorld.getBlockEntity(pos);
+                    if(claimAccess != null) {
+                        UUID ownerUuid = claimAccess.cclaims$getClaim().owner();
+                        List<String> trustedNames = claimAccess.cclaims$getClaim().trusted().stream()
+                                .map(uuid -> serverWorld.getServer().getUserCache() != null ? serverWorld.getServer().getUserCache().getByUuid(uuid).map(GameProfile::getName).orElse(null) : null)
+                                .filter(Objects::nonNull)
+                                .toList();
+                        extraText = Optional.ofNullable(serverWorld.getServer().getUserCache())
+                                .flatMap(userCache -> userCache.getByUuid(ownerUuid))
+                                .map(GameProfile::getName)
+                                .map(name ->
+                                        Text.literal(" - " + name)
+                                                .withColor(Colors.YELLOW)
+                                                .styled(
+                                                        style ->
+                                                                !trustedNames.isEmpty() ? style.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of(String.join("\n", trustedNames)))) : style
+                                                )
+                                );
+                    }
+                }
+
                 String formattedPosition = pos.getX() + " " + pos.getY() + " " + pos.getZ();
                 text.append(Text.of("\n  - "));
                 text.append(
@@ -384,6 +407,7 @@ public class ClaimCommand {
                                         .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Click to copy")))
                                 )
                 );
+                extraText.ifPresent(text::append);
             }
 
             if(page != -1) {
