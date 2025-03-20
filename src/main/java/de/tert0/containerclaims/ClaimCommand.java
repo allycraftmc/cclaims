@@ -360,6 +360,30 @@ public class ClaimCommand {
         return Command.SINGLE_SUCCESS;
     }
 
+    private static MutableText getTextOfBlockPos(BlockPos pos, boolean copyable) {
+        String formattedPos = pos.getX() + " " + pos.getY() + " " + pos.getZ();
+        MutableText text = Text.literal(formattedPos)
+                .styled(
+                        style -> style
+                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Click to teleport")))
+                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tp " + formattedPos))
+                );
+
+        if(copyable) {
+            text.append(
+                    Text.literal(" (Copy)")
+                            .withColor(Colors.LIGHT_GRAY)
+                            .styled(
+                                    style -> style
+                                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Click to copy")))
+                                            .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, formattedPos))
+                            )
+            );
+        }
+
+        return text;
+    }
+
     private static int listCommand(ServerCommandSource source, ServerWorld serverWorld, int page) throws CommandSyntaxException {
         List<BlockPos> positions = GlobalClaimState.getWorldState(serverWorld).getPositions()
                 .stream()
@@ -415,25 +439,8 @@ public class ClaimCommand {
                     }
                 }
 
-                String formattedPosition = pos.getX() + " " + pos.getY() + " " + pos.getZ();
                 text.append(Text.of("\n  - "));
-                text.append(
-                        Text.literal(formattedPosition)
-                                .styled(
-                                        style -> style
-                                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tp " + formattedPosition))
-                                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Click to teleport")))
-                                                .withColor(Colors.GREEN)
-                                )
-                );
-                text.append(
-                        Text.literal(" (Copy)")
-                                .withColor(Colors.LIGHT_GRAY)
-                                .styled(style -> style
-                                        .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, formattedPosition))
-                                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Click to copy")))
-                                )
-                );
+                text.append(getTextOfBlockPos(pos, true).copy().withColor(Colors.GREEN));
                 extraText.ifPresent(text::append);
             }
 
@@ -513,16 +520,8 @@ public class ClaimCommand {
         } else {
             ctx.getSource().sendFeedback(() -> Text.literal(problems.size() + " problems found").withColor(Colors.RED), false);
             for(Pair<BlockPos, Text> entry : problems) {
-                String formattedPos = entry.getLeft().getX() + " " + entry.getLeft().getY() + " " + entry.getLeft().getZ();
-                Text posText = Text.literal(formattedPos)
-                        .styled(
-                                style -> style
-                                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tp " + formattedPos))
-                                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Click to teleport")))
-                        )
-                        .withColor(Colors.GREEN);
                 ctx.getSource().sendFeedback(
-                        () -> Text.literal("- ").append(posText).append(": ").append(entry.getRight()),
+                        () -> Text.literal("- ").append(getTextOfBlockPos(entry.getLeft(), false).withColor(Colors.GREEN)).append(": ").append(entry.getRight()),
                         false
                 );
             }
