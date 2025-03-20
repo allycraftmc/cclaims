@@ -31,6 +31,8 @@ public abstract class BlockEntityMixin implements ClaimAccess {
 
     @Shadow public abstract BlockPos getPos();
 
+    @Shadow public abstract boolean isRemoved();
+
     @Unique
     private ClaimComponent claim;
 
@@ -43,7 +45,9 @@ public abstract class BlockEntityMixin implements ClaimAccess {
         nbt.put(ContainerClaimMod.CLAIM_DATA_ID.toString(), nbtClaim);
 
         // to track claimed containers that were not directly claimed through the mod (e.g. modifying nbt or cloning a block entity)
-        GlobalClaimState.getWorldState((ServerWorld) this.getWorld()).addPosition(this.getPos());
+        if(!this.isRemoved()) {
+            GlobalClaimState.getWorldState((ServerWorld) this.getWorld()).addPosition(this.getPos());
+        }
     }
 
     @Inject(method = "readNbt", at = @At("RETURN"))
