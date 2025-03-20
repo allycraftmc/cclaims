@@ -22,6 +22,7 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Colors;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.Pair;
 import net.minecraft.util.UserCache;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -29,6 +30,7 @@ import net.minecraft.util.math.BlockPos;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
@@ -104,6 +106,31 @@ public class ClaimCommand {
                                                                             .executes(
                                                                                     ctx ->
                                                                                             ClaimCommand.listCommand(ctx.getSource(), DimensionArgumentType.getDimensionArgument(ctx, "dimension"), -1)
+                                                                            )
+                                                            )
+                                            )
+                            )
+                            .then(
+                                    literal("debug")
+                                            .requires(Permissions.require("cclaim.debug", 4))
+                                            .then(
+                                                    literal("verify")
+                                                            .requires(Permissions.require("cclaim.debug.verify", 4))
+                                                            .executes(ctx -> ClaimCommand.verifyCommand(ctx, ctx.getSource().getPlayerOrThrow().getServerWorld(), false))
+                                                            .then(
+                                                                    argument("dimension", DimensionArgumentType.dimension())
+                                                                            .executes(ctx -> ClaimCommand.verifyCommand(ctx, DimensionArgumentType.getDimensionArgument(ctx, "dimension"), false))
+                                                                            .then(
+                                                                                    literal("load")
+                                                                                            .executes(ctx -> {
+                                                                                                ctx.getSource().sendFeedback(() -> Text.literal("WARNING: This will load all chunks with registered claims in them. Be careful, especially in production!").withColor(Colors.YELLOW), false);
+                                                                                                ctx.getSource().sendFeedback(() -> Text.literal("To confirm that you want to do this, run /cclaim debug verify <dimension> load confirm"), false);
+                                                                                                return 0;
+                                                                                            })
+                                                                                            .then(
+                                                                                                    literal("confirm")
+                                                                                                            .executes(ctx -> ClaimCommand.verifyCommand(ctx, DimensionArgumentType.getDimensionArgument(ctx, "dimension"), true))
+                                                                                            )
                                                                             )
                                                             )
                                             )
@@ -435,6 +462,72 @@ public class ClaimCommand {
         }
 
         source.sendFeedback(() -> text, false);
+
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int verifyCommand(CommandContext<ServerCommandSource> ctx, ServerWorld serverWorld, boolean loadChunks) {
+        Set<BlockPos> allPositions = GlobalClaimState.getWorldState(serverWorld).getPositions();
+
+        Set<BlockPos> loadedPositions = allPositions.stream()
+                .filter(pos -> serverWorld.isPosLoaded(pos) || loadChunks)
+                .collect(Collectors.toSet());
+
+        List<Pair<BlockPos, Text>> problems = new ArrayList<>();
+        for(BlockPos pos : loadedPositions) {
+            ClaimAccess claimAccess = (ClaimAccess) serverWorld.getBlockEntity(pos);
+
+            // Check Claim exists
+            if(claimAccess == null || !ClaimUtils.isClaimed(claimAccess)) {
+                problems.add(new Pair<>(pos, Text.literal("Claim not found").withColor(Colors.RED)));
+                continue;
+            }
+
+            // Check Double Chests
+            ClaimAccess otherClaimAccess = (ClaimAccess) DoubleChestUtils.getNeighborBlockEntity(pos, serverWorld);
+            if(otherClaimAccess != null) {
+                if(!ClaimUtils.isClaimed(otherClaimAccess)) {
+                    problems.add(new Pair<>(pos, Text.literal("Double Chest not fully claimed").withColor(Colors.YELLOW)));
+                    continue;
+                }
+
+                ClaimComponent claim = claimAccess.cclaims$getClaim();
+                ClaimComponent otherClaim = otherClaimAccess.cclaims$getClaim();
+
+                if(!claim.owner().equals(otherClaim.owner())) {
+                    problems.add(new Pair<>(pos, Text.literal("Double Chest owners do not match").withColor(Colors.YELLOW)));
+                    continue;
+                }
+
+                if(!claim.trusted().equals(otherClaim.trusted())) {
+                    problems.add(new Pair<>(pos, Text.literal("Double Chest trusted players do not match").withColor(Colors.YELLOW)));
+                    continue;
+                }
+            }
+        }
+
+        ctx.getSource().sendFeedback(() -> Text.of("Checked " + loadedPositions.size() + "/" + allPositions.size() + " positions"), false);
+
+        if(problems.isEmpty()) {
+            ctx.getSource().sendFeedback(() -> Text.literal("No problems found").withColor(Colors.GREEN), false);
+        } else {
+            ctx.getSource().sendFeedback(() -> Text.literal(problems.size() + " problems found").withColor(Colors.RED), false);
+            for(Pair<BlockPos, Text> entry : problems) {
+                String formattedPos = entry.getLeft().getX() + " " + entry.getLeft().getY() + " " + entry.getLeft().getZ();
+                Text posText = Text.literal(formattedPos)
+                        .styled(
+                                style -> style
+                                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tp " + formattedPos))
+                                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Click to teleport")))
+                        )
+                        .withColor(Colors.GREEN);
+                ctx.getSource().sendFeedback(
+                        () -> Text.literal("- ").append(posText).append(": ").append(entry.getRight()),
+                        false
+                );
+            }
+        }
+
 
         return Command.SINGLE_SUCCESS;
     }
