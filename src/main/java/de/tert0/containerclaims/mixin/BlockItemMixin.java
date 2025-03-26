@@ -33,7 +33,7 @@ public abstract class BlockItemMixin {
             if(!ClaimUtils.isOwnerOrAdmin(claimAccess, player)) {
                 player.sendMessage(Text.literal("The other chest is claimed!").withColor(Colors.RED), true);
                 int slot = switch (context.getHand()) {
-                    case MAIN_HAND -> player.getInventory().selectedSlot;
+                    case MAIN_HAND -> player.getInventory().getSelectedSlot();
                     case OFF_HAND -> PlayerInventory.OFF_HAND_SLOT;
                 };
                 player.networkHandler.sendPacket(player.getInventory().createSlotSetPacket(slot));

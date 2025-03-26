@@ -179,14 +179,14 @@ public class ClaimCommand {
                 Text.literal("/cclaim claim\n")
                         .withColor(Colors.YELLOW)
                         .styled(
-                                style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/cclaim claim"))
+                                style -> style.withClickEvent(new ClickEvent.SuggestCommand("/cclaim claim"))
                         )
         );
         text.append(
                 Text.literal("/cclaim unlaim")
                         .withColor(Colors.YELLOW)
                         .styled(
-                                style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/cclaim unclaim"))
+                                style -> style.withClickEvent(new ClickEvent.SuggestCommand("/cclaim unclaim"))
                         )
         );
         text.append(" can be used to unclaim a container\n");
@@ -195,7 +195,7 @@ public class ClaimCommand {
                 Text.literal("/cclaim trust <player>")
                         .withColor(Colors.YELLOW)
                         .styled(
-                                style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/cclaim trust "))
+                                style -> style.withClickEvent(new ClickEvent.SuggestCommand("/cclaim trust "))
                         )
         );
         text.append(". To revoke these permissions, you can use ");
@@ -203,7 +203,7 @@ public class ClaimCommand {
                 Text.literal("/cclaim untrust <player>")
                         .withColor(Colors.YELLOW)
                         .styled(
-                                style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/cclaim untrust "))
+                                style -> style.withClickEvent(new ClickEvent.SuggestCommand("/cclaim untrust "))
                         )
         );
         text.append("\n");
@@ -212,7 +212,7 @@ public class ClaimCommand {
                 Text.literal("/cclaim info")
                         .withColor(Colors.YELLOW)
                         .styled(
-                                style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/cclaim info"))
+                                style -> style.withClickEvent(new ClickEvent.SuggestCommand("/cclaim info"))
                         )
         );
         text.append(".\n");
@@ -365,8 +365,8 @@ public class ClaimCommand {
         MutableText text = Text.literal(formattedPos)
                 .styled(
                         style -> style
-                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Click to teleport")))
-                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tp " + formattedPos))
+                                .withHoverEvent(new HoverEvent.ShowText(Text.of("Click to teleport")))
+                                .withClickEvent(new ClickEvent.RunCommand("/tp " + formattedPos))
                 );
 
         if(copyable) {
@@ -375,8 +375,8 @@ public class ClaimCommand {
                             .withColor(Colors.LIGHT_GRAY)
                             .styled(
                                     style -> style
-                                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Click to copy")))
-                                            .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, formattedPos))
+                                            .withHoverEvent(new HoverEvent.ShowText(Text.of("Click to copy")))
+                                            .withClickEvent(new ClickEvent.CopyToClipboard(formattedPos))
                             )
             );
         }
@@ -433,7 +433,7 @@ public class ClaimCommand {
                                                 .withColor(Colors.YELLOW)
                                                 .styled(
                                                         style ->
-                                                                !trustedNames.isEmpty() ? style.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of(String.join("\n", trustedNames)))) : style
+                                                                !trustedNames.isEmpty() ? style.withHoverEvent(new HoverEvent.ShowText(Text.of(String.join("\n", trustedNames)))) : style
                                                 )
                                 );
                     }
@@ -447,13 +447,13 @@ public class ClaimCommand {
             if(page != -1) {
                 Text btnPrev = (page > 1) ? Text.literal("<<")
                         .styled(style -> style
-                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/cclaim list " + dimension + " " + (page - 1)))
-                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Previous Page")))
+                                .withClickEvent(new ClickEvent.RunCommand("/cclaim list " + dimension + " " + (page - 1)))
+                                .withHoverEvent(new HoverEvent.ShowText(Text.of("Previous Page")))
                         ) : Text.literal("<<");
                 Text btnNext = (page + 1 <= totalPageCount) ? Text.literal(">>")
                         .styled(style -> style
-                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/cclaim list " + dimension + " " + (page + 1)))
-                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.of("Next Page")))
+                                .withClickEvent(new ClickEvent.RunCommand("/cclaim list " + dimension + " " + (page + 1)))
+                                .withHoverEvent(new HoverEvent.ShowText(Text.of("Next Page")))
                         ) : Text.literal(">>");
                 text.append(
                         Text.literal("\n----- ")

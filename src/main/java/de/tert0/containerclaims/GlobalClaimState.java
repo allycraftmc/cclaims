@@ -1,35 +1,37 @@
 package de.tert0.containerclaims;
 
 import com.google.common.collect.ImmutableSet;
-import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.registry.RegistryWrapper;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.PersistentState;
 import net.minecraft.world.PersistentStateManager;
-import org.slf4j.Logger;
+import net.minecraft.world.PersistentStateType;
 
 import java.util.*;
 
 public class GlobalClaimState extends PersistentState {
-    private static final Logger LOGGER = LogUtils.getLogger();
+    private final HashSet<BlockPos> positions;
 
-    private final Set<BlockPos> positions;
+    private static final Codec<GlobalClaimState> CODEC = RecordCodecBuilder.create(
+            instance -> instance.group(
+                    BlockPos.CODEC
+                            .listOf()
+                            .fieldOf("positions")
+                            .xmap(HashSet::new, ArrayList::new)
+                            .forGetter(globalClaimState -> globalClaimState.positions)
+            ).apply(instance, GlobalClaimState::new)
+    );
 
-    private static final Type<GlobalClaimState> STATE_TYPE = new Type<>(
+    private static final PersistentStateType<GlobalClaimState> STATE_TYPE = new PersistentStateType<>(
+            ContainerClaimMod.MOD_ID,
             GlobalClaimState::createDefault,
-            GlobalClaimState::createFromNbt,
+            GlobalClaimState.CODEC,
             null
     );
 
-    private static final Codec<Set<BlockPos>> CODEC_POSITIONS = BlockPos.CODEC.listOf()
-            .xmap(HashSet::new, ArrayList::new);
-
-    private GlobalClaimState(Set<BlockPos> positions) {
+    private GlobalClaimState(HashSet<BlockPos> positions) {
         this.positions = positions;
     }
 
@@ -47,25 +49,6 @@ public class GlobalClaimState extends PersistentState {
         this.markDirty();
     }
 
-    @Override
-    public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-        NbtElement nbtPositions = CODEC_POSITIONS
-                .encodeStart(NbtOps.INSTANCE, this.positions)
-                .resultOrPartial(LOGGER::error)
-                .orElseThrow();
-
-        nbt.put("positions", nbtPositions);
-        return nbt;
-    }
-
-    private static GlobalClaimState createFromNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registryLookup) {
-        return new GlobalClaimState(
-                CODEC_POSITIONS.parse(NbtOps.INSTANCE, nbt.get("positions"))
-                        .resultOrPartial(LOGGER::error)
-                        .orElseThrow()
-        );
-    }
-
     private static GlobalClaimState createDefault() {
         return new GlobalClaimState(new HashSet<>());
     }
@@ -73,6 +56,6 @@ public class GlobalClaimState extends PersistentState {
     public static GlobalClaimState getWorldState(ServerWorld world) {
         PersistentStateManager persistentStateManager = world.getPersistentStateManager();
 
-        return persistentStateManager.getOrCreate(STATE_TYPE, ContainerClaimMod.MOD_ID);
+        return persistentStateManager.getOrCreate(STATE_TYPE);
     }
 }
