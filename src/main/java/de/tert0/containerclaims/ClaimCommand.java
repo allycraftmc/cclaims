@@ -1,9 +1,11 @@
 package de.tert0.containerclaims;
 
+import com.google.common.collect.ImmutableSet;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.LiteralMessage;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
@@ -13,6 +15,7 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.command.argument.GameProfileArgumentType;
 import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -44,6 +47,13 @@ public class ClaimCommand {
     private static final SimpleCommandExceptionType ALREADY_CLAIMED = new SimpleCommandExceptionType(new LiteralMessage("The container is already claimed!"));
     private static final SimpleCommandExceptionType PAGE_OUT_OF_BOUNDS = new SimpleCommandExceptionType(new LiteralMessage("Page out of bounds"));
     private static final SimpleCommandExceptionType MISSING_DIMENSION_REGISTRY_KEY = new SimpleCommandExceptionType(new LiteralMessage("Internal Error. Dimension has no Registry Key"));
+
+    private static final SimpleCommandExceptionType GROUP_ALREADY_EXISTS = new SimpleCommandExceptionType(new LiteralMessage("This group already exists"));
+    private static final SimpleCommandExceptionType GROUP_NAME_INVALID_CHARACTER = new SimpleCommandExceptionType(new LiteralMessage("Group names have to only contain lowercase letter, numbers and underscores"));
+    private static final SimpleCommandExceptionType GROUP_NAME_INVALID_LENGTH = new SimpleCommandExceptionType(new LiteralMessage("Group names have to be between 3 and 16 characters long"));
+    private static final SimpleCommandExceptionType GROUP_DOES_NOT_EXIST = new SimpleCommandExceptionType(new LiteralMessage("This group does not exist"));
+
+    private static final SimpleCommandExceptionType PERMISSION_DENIED = new SimpleCommandExceptionType(new LiteralMessage("Permission denied"));
 
     private static final int LIST_PAGE_SIZE = 8;
 
@@ -131,6 +141,56 @@ public class ClaimCommand {
                                                                                                     literal("confirm")
                                                                                                             .executes(ctx -> ClaimCommand.verifyCommand(ctx, DimensionArgumentType.getDimensionArgument(ctx, "dimension"), true))
                                                                                             )
+                                                                            )
+                                                            )
+                                            )
+                            )
+                            .then(
+                                    // TODO add suggestions for group names
+                                    literal("group")
+                                            .then(
+                                                    literal("create")
+                                                            .then(
+                                                                    argument("group", StringArgumentType.word())
+                                                                            .requires(Permissions.require("cclaim.group.create", true))
+                                                                            .executes(ClaimCommand::groupCreateCommand)
+                                                            )
+                                            )
+                                            .then(
+                                                    literal("remove")
+                                                            .then(
+                                                                    argument("group", StringArgumentType.word())
+                                                                            .executes(ClaimCommand::groupRemoveCommand)
+                                                            )
+                                            )
+                                            .then(
+                                                    literal("info")
+                                                            .then(
+                                                                    argument("group", StringArgumentType.word())
+                                                                            .executes(ClaimCommand::groupInfoCommand)
+                                                            )
+                                            )
+                                            .then(
+                                                    literal("list")
+                                                            .executes(ClaimCommand::groupListCommand)
+                                            )
+                                            .then(
+                                                    literal("trust")
+                                                            .then(
+                                                                    argument("group", StringArgumentType.word())
+                                                                            .then(
+                                                                                    argument("targets", GameProfileArgumentType.gameProfile())
+                                                                                            .executes(ClaimCommand::groupTrustCommand)
+                                                                            )
+                                                            )
+                                            )
+                                            .then(
+                                                    literal("untrust")
+                                                            .then(
+                                                                    argument("group", StringArgumentType.word())
+                                                                            .then(
+                                                                                    argument("targets", GameProfileArgumentType.gameProfile())
+                                                                                            .executes(ClaimCommand::groupUntrustCommand)
                                                                             )
                                                             )
                                             )
@@ -529,5 +589,215 @@ public class ClaimCommand {
 
 
         return Command.SINGLE_SUCCESS;
+    }
+
+    private static int groupCreateCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        String groupName = StringArgumentType.getString(ctx, "group");
+
+        GroupState groupState = GroupState.getState(ctx.getSource().getServer());
+
+        if (groupState.getGroups().stream().anyMatch(g -> g.name().equals(groupName))) {
+            throw GROUP_ALREADY_EXISTS.create();
+        }
+
+        // TODO limit group count per player
+
+        if (!groupName.chars().allMatch(raw -> {
+            char c = (char) raw;
+            return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_';
+        })) {
+            throw GROUP_NAME_INVALID_CHARACTER.create();
+        }
+
+        if (groupName.length() > 16 || groupName.length() < 3) {
+            throw GROUP_NAME_INVALID_LENGTH.create();
+        }
+
+        GroupComponent group = new GroupComponent(
+                UUID.randomUUID(),
+                groupName,
+                player.getUuid(),
+                ImmutableSet.of()
+        );
+
+        groupState.addGroup(group);
+
+        ctx.getSource().sendFeedback(() -> Text.literal("Successfully created group!").withColor(Colors.GREEN), false);
+
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static GroupComponent getGroup(GroupState groupState, String groupName) throws CommandSyntaxException {
+        return groupState.getGroups()
+                .stream()
+                .filter(g -> g.name().equals(groupName))
+                .findFirst()
+                .orElseThrow(GROUP_DOES_NOT_EXIST::create);
+    }
+
+    private static int groupRemoveCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+
+        String groupName = StringArgumentType.getString(ctx, "group");
+        GroupState groupState = GroupState.getState(ctx.getSource().getServer());
+        GroupComponent group = getGroup(groupState, groupName);
+
+        if(!group.owner().equals(player.getUuid()) && !Permissions.check(player, "cclaim.group.admin", 3)) {
+            throw PERMISSION_DENIED.create();
+        }
+
+        groupState.removeGroup(group);
+
+        ctx.getSource().sendFeedback(() -> Text.literal("Successfully removed group").withColor(Colors.GREEN), false);
+
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static String getPlayerNameOrUuid(UUID uuid, MinecraftServer server) {
+        // TODO use in all commands
+        return Optional.ofNullable(server.getUserCache())
+                .flatMap(userCache -> userCache.getByUuid(uuid))
+                .map(GameProfile::getName)
+                .orElse(uuid.toString());
+    }
+
+    private static int groupInfoCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+
+        String groupName = StringArgumentType.getString(ctx, "group");
+        GroupState groupState = GroupState.getState(ctx.getSource().getServer());
+        GroupComponent group = getGroup(groupState, groupName);
+
+        if(!group.isMember(player) && !Permissions.check(player, "cclaim.group.admin", 3)) {
+            throw PERMISSION_DENIED.create();
+        }
+
+        MutableText text = Text.literal("");
+
+        text.append(Text.literal("Container Claim Group Info\n").withColor(Colors.CYAN));
+        text.append("-".repeat(20) + "\n");
+
+        text.append("Name: ");
+        text.append(
+                Text.literal(group.name() + "\n")
+                        .withColor(Colors.BLUE)
+                        .styled(style -> style.withHoverEvent(
+                                new HoverEvent.ShowText(Text.of(group.uuid().toString()))
+                        ))
+        );
+        text.append("Owner: ");
+        text.append(
+                Text.literal(getPlayerNameOrUuid(group.owner(), ctx.getSource().getServer()) + "\n")
+                        .withColor(Colors.GREEN)
+        );
+
+        text.append("Members: ");
+
+        for(UUID uuid : group.members()) {
+            text.append("\n  - ");
+            text.append(
+                    Text.literal(getPlayerNameOrUuid(uuid, ctx.getSource().getServer()))
+                            .withColor(Colors.LIGHT_YELLOW)
+            );
+        }
+
+        if(group.members().isEmpty()) {
+            text.append(Text.literal("¯\\_(ツ)_/¯").withColor(Colors.YELLOW));
+        }
+
+        ctx.getSource().sendFeedback(() -> text, false);
+
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int groupListCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        // TODO pagination
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+
+        GroupState groupState = GroupState.getState(ctx.getSource().getServer());
+
+        Collection<GroupComponent> groups = groupState.getGroups().stream()
+                .filter(group -> group.isMember(player) || Permissions.check(player, "cclaim.group.admin", 3))
+                .toList();
+
+        MutableText text = Text.literal("");
+        text.append(
+                Text.literal("--- Container Claim Groups (" + groups.size() + ") ---")
+                        .withColor(Colors.CYAN)
+        );
+        for(GroupComponent group : groups) {
+            String ownerName = Optional.ofNullable(ctx.getSource().getServer().getUserCache())
+                    .flatMap(userCache -> userCache.getByUuid(group.owner()))
+                    .map(GameProfile::getName)
+                    .orElse(group.owner().toString());
+
+            text.append(Text.of("\n  - "));
+            text.append(
+                    Text.literal(group.name())
+                            .withColor(Colors.GREEN)
+                            .styled(style -> style
+                                    .withHoverEvent(new HoverEvent.ShowText(Text.of(ownerName + " (" + group.members().size() + ")")))
+                            )
+            );
+        }
+
+        if(groups.isEmpty()) {
+            text.append(Text.literal("\nThere are no groups (that you can see)").withColor(Colors.LIGHT_RED));
+        }
+
+        ctx.getSource().sendFeedback(() -> text, false);
+
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int groupTrustCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+
+        String groupName = StringArgumentType.getString(ctx, "group");
+        GroupState groupState = GroupState.getState(ctx.getSource().getServer());
+        GroupComponent group = getGroup(groupState, groupName);
+
+        if(!group.owner().equals(player.getUuid()) && !Permissions.check(player, "cclaim.group.admin", 3)) {
+            throw PERMISSION_DENIED.create();
+        }
+
+        Collection<GameProfile> gameProfiles = GameProfileArgumentType.getProfileArgument(ctx, "targets");
+
+        groupState.modifyGroup(group.addMembers(gameProfiles.stream().map(GameProfile::getId).toList()));
+
+        for(GameProfile gameProfile : gameProfiles) {
+            ctx.getSource().sendFeedback(() -> Text.of("Added " + gameProfile.getName() + " to the group"), false);
+        }
+
+        return gameProfiles.size();
+    }
+
+    private static int groupUntrustCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+
+        String groupName = StringArgumentType.getString(ctx, "group");
+        GroupState groupState = GroupState.getState(ctx.getSource().getServer());
+        GroupComponent group = getGroup(groupState, groupName);
+
+        if(!group.owner().equals(player.getUuid()) && !Permissions.check(player, "cclaim.group.admin", 3)) {
+            throw PERMISSION_DENIED.create();
+        }
+
+        Collection<GameProfile> gameProfiles = GameProfileArgumentType.getProfileArgument(ctx, "targets");
+
+        groupState.modifyGroup(group.removeMembers(gameProfiles.stream().map(GameProfile::getId).toList()));
+
+        int count = 0;
+        for(GameProfile gameProfile : gameProfiles) {
+            if(group.members().contains(gameProfile.getId())) {
+                ctx.getSource().sendFeedback(() -> Text.of("Removed " + gameProfile.getName() + " from the group"), false);
+                count++;
+            } else {
+                ctx.getSource().sendFeedback(() -> Text.of(gameProfile.getName() + " was not a member of the group"), false);
+            }
+        }
+
+        return count;
     }
 }
