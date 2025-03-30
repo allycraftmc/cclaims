@@ -8,6 +8,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -52,6 +53,10 @@ public class ClaimCommand {
     private static final SimpleCommandExceptionType GROUP_NAME_INVALID_CHARACTER = new SimpleCommandExceptionType(new LiteralMessage("Group names have to only contain lowercase letter, numbers and underscores"));
     private static final SimpleCommandExceptionType GROUP_NAME_INVALID_LENGTH = new SimpleCommandExceptionType(new LiteralMessage("Group names have to be between 3 and 16 characters long"));
     private static final SimpleCommandExceptionType GROUP_DOES_NOT_EXIST = new SimpleCommandExceptionType(new LiteralMessage("This group does not exist"));
+    private static final DynamicCommandExceptionType GROUP_LIMIT_REACHED = new DynamicCommandExceptionType(
+            limit -> new LiteralMessage("You are not allowed to create more than " + limit + " groups")
+    );
+
 
     private static final SimpleCommandExceptionType PERMISSION_DENIED = new SimpleCommandExceptionType(new LiteralMessage("Permission denied"));
 
@@ -604,7 +609,13 @@ public class ClaimCommand {
             throw GROUP_ALREADY_EXISTS.create();
         }
 
-        // TODO limit group count per player
+        long currentCount = groupState.getGroups().stream()
+                .filter(g -> g.owner().equals(player.getUuid()))
+                .count();
+
+        if(currentCount >= 2 && !Permissions.check(player, "cclaim.group.admin", 3)) { // TODO make configurable
+            throw GROUP_LIMIT_REACHED.create(2);
+        }
 
         if (!groupName.chars().allMatch(raw -> {
             char c = (char) raw;
