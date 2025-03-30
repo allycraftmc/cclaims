@@ -27,9 +27,9 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Colors;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Pair;
-import net.minecraft.util.UserCache;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
+import org.jetbrains.annotations.NotNull;
 
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -302,16 +302,11 @@ public class ClaimCommand {
         } else if(!ClaimUtils.canUse(claimAccess, player) && !Permissions.check(player, "cclaim.info.admin", 2)) {
             text.append(Text.literal("This container is claimed!").withColor(Colors.LIGHT_YELLOW));
         } else {
-            UserCache userCache = ctx.getSource().getServer().getUserCache();
-
             text.append("Owner: ");
-            UUID ownerUuid = claimAccess.cclaims$getClaim().owner();
-            text.append(Text.literal(
-                    Optional.ofNullable(userCache)
-                            .flatMap(uc -> uc.getByUuid(ownerUuid))
-                            .map(GameProfile::getName)
-                            .orElse(ownerUuid.toString())
-            ).withColor(Colors.GREEN));
+            text.append(
+                    Text.literal(getPlayerNameOrUuid(claimAccess.cclaims$getClaim().owner(), ctx.getSource().getServer()))
+                            .withColor(Colors.GREEN)
+            );
             text.append("\n");
             text.append("Trusted: ");
 
@@ -321,12 +316,10 @@ public class ClaimCommand {
             } else {
                 for(UUID trustedUuid : trustedUuids) {
                     text.append(Text.of("\n  - "));
-                    text.append(Text.literal(
-                            Optional.ofNullable(userCache)
-                                    .flatMap(uc -> uc.getByUuid(trustedUuid))
-                                    .map(GameProfile::getName)
-                                    .orElse(trustedUuid.toString())
-                    ).withColor(Colors.LIGHT_YELLOW));
+                    text.append(
+                            Text.literal(getPlayerNameOrUuid(trustedUuid, ctx.getSource().getServer()))
+                                    .withColor(Colors.LIGHT_YELLOW)
+                    );
                 }
             }
 
@@ -452,6 +445,14 @@ public class ClaimCommand {
         return text;
     }
 
+    @NotNull
+    private static String getPlayerNameOrUuid(UUID uuid, MinecraftServer server) {
+        return Optional.ofNullable(server.getUserCache())
+                .flatMap(userCache -> userCache.getByUuid(uuid))
+                .map(GameProfile::getName)
+                .orElse(uuid.toString());
+    }
+
     private static int listCommand(ServerCommandSource source, ServerWorld serverWorld, int page) throws CommandSyntaxException {
         List<BlockPos> positions = GlobalClaimState.getWorldState(serverWorld).getPositions()
                 .stream()
@@ -488,22 +489,18 @@ public class ClaimCommand {
                 if(serverWorld.isPosLoaded(pos)) {
                     ClaimAccess claimAccess = (ClaimAccess) serverWorld.getBlockEntity(pos);
                     if(claimAccess != null) {
-                        UUID ownerUuid = claimAccess.cclaims$getClaim().owner();
                         List<String> trustedNames = claimAccess.cclaims$getClaim().trusted().stream()
-                                .map(uuid -> serverWorld.getServer().getUserCache() != null ? serverWorld.getServer().getUserCache().getByUuid(uuid).map(GameProfile::getName).orElse(null) : null)
-                                .filter(Objects::nonNull)
+                                .map(uuid -> getPlayerNameOrUuid(uuid, source.getServer()))
                                 .toList();
-                        extraText = Optional.ofNullable(serverWorld.getServer().getUserCache())
-                                .flatMap(userCache -> userCache.getByUuid(ownerUuid))
-                                .map(GameProfile::getName)
-                                .map(name ->
-                                        Text.literal(" - " + name)
-                                                .withColor(Colors.YELLOW)
-                                                .styled(
-                                                        style ->
-                                                                !trustedNames.isEmpty() ? style.withHoverEvent(new HoverEvent.ShowText(Text.of(String.join("\n", trustedNames)))) : style
-                                                )
-                                );
+
+                        String ownerName = getPlayerNameOrUuid(claimAccess.cclaims$getClaim().owner(), source.getServer());
+                        extraText = Optional.of(
+                                Text.literal(" - " + ownerName)
+                                        .withColor(Colors.YELLOW)
+                                        .styled(style -> trustedNames.isEmpty() ? style :style.withHoverEvent(
+                                                new HoverEvent.ShowText(Text.of(String.join("\n", trustedNames)))
+                                        ))
+                        );
                     }
                 }
 
@@ -668,14 +665,6 @@ public class ClaimCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static String getPlayerNameOrUuid(UUID uuid, MinecraftServer server) {
-        // TODO use in all commands
-        return Optional.ofNullable(server.getUserCache())
-                .flatMap(userCache -> userCache.getByUuid(uuid))
-                .map(GameProfile::getName)
-                .orElse(uuid.toString());
-    }
-
     private static int groupInfoCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
 
@@ -741,10 +730,7 @@ public class ClaimCommand {
                         .withColor(Colors.CYAN)
         );
         for(GroupComponent group : groups) {
-            String ownerName = Optional.ofNullable(ctx.getSource().getServer().getUserCache())
-                    .flatMap(userCache -> userCache.getByUuid(group.owner()))
-                    .map(GameProfile::getName)
-                    .orElse(group.owner().toString());
+            String ownerName = getPlayerNameOrUuid(group.owner(), ctx.getSource().getServer());
 
             text.append(Text.of("\n  - "));
             text.append(
