@@ -146,7 +146,6 @@ public class ClaimCommand {
                                             )
                             )
                             .then(
-                                    // TODO add suggestions for group names
                                     literal("group")
                                             .then(
                                                     literal("create")
@@ -160,6 +159,7 @@ public class ClaimCommand {
                                                     literal("remove")
                                                             .then(
                                                                     argument("group", StringArgumentType.word())
+                                                                            .suggests(GroupSuggestionProvider.owner())
                                                                             .executes(ClaimCommand::groupRemoveCommand)
                                                             )
                                             )
@@ -167,6 +167,7 @@ public class ClaimCommand {
                                                     literal("info")
                                                             .then(
                                                                     argument("group", StringArgumentType.word())
+                                                                            .suggests(GroupSuggestionProvider.member())
                                                                             .executes(ClaimCommand::groupInfoCommand)
                                                             )
                                             )
@@ -178,6 +179,7 @@ public class ClaimCommand {
                                                     literal("trust")
                                                             .then(
                                                                     argument("group", StringArgumentType.word())
+                                                                            .suggests(GroupSuggestionProvider.owner())
                                                                             .then(
                                                                                     argument("targets", GameProfileArgumentType.gameProfile())
                                                                                             .executes(ClaimCommand::groupTrustCommand)
@@ -188,6 +190,7 @@ public class ClaimCommand {
                                                     literal("untrust")
                                                             .then(
                                                                     argument("group", StringArgumentType.word())
+                                                                            .suggests(GroupSuggestionProvider.owner())
                                                                             .then(
                                                                                     argument("targets", GameProfileArgumentType.gameProfile())
                                                                                             .executes(ClaimCommand::groupUntrustCommand)
