@@ -14,6 +14,7 @@ import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.command.argument.DimensionArgumentType;
+import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.command.argument.GameProfileArgumentType;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.server.MinecraftServer;
@@ -57,6 +58,7 @@ public class ClaimCommand {
             limit -> new LiteralMessage("You are not allowed to create more than " + limit + " groups")
     );
     private static final SimpleCommandExceptionType GROUP_NOT_TRUSTED = new SimpleCommandExceptionType(new LiteralMessage("The group is not trusted"));
+    private static final SimpleCommandExceptionType ALREADY_GROUP_OWNER = new SimpleCommandExceptionType(new LiteralMessage("The player is already the owner of the group"));
 
 
     private static final SimpleCommandExceptionType PERMISSION_DENIED = new SimpleCommandExceptionType(new LiteralMessage("Permission denied"));
@@ -215,7 +217,19 @@ public class ClaimCommand {
                                                                             .suggests(GroupSuggestionProvider.owner())
                                                                             .then(
                                                                                     argument("targets", GameProfileArgumentType.gameProfile())
-                                                                                            .executes(ClaimCommand::groupRemoveMember)
+                                                                                            .executes(ClaimCommand::groupRemoveMemberCommand)
+                                                                            )
+                                                            )
+                                            )
+                                            .then(
+                                                    literal("transfer")
+                                                            .requires(Permissions.require("cclaim.group.transfer", 3))
+                                                            .then(
+                                                                    argument("group", StringArgumentType.word())
+                                                                            .suggests(GroupSuggestionProvider.owner())
+                                                                            .then(
+                                                                                    argument("player", EntityArgumentType.player())
+                                                                                            .executes(ClaimCommand::groupTransferCommand)
                                                                             )
                                                             )
                                             )
@@ -859,7 +873,7 @@ public class ClaimCommand {
         return gameProfiles.size();
     }
 
-    private static int groupRemoveMember(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private static int groupRemoveMemberCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
 
         String groupName = StringArgumentType.getString(ctx, "group");
@@ -885,5 +899,27 @@ public class ClaimCommand {
         }
 
         return count;
+    }
+
+    private static int groupTransferCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        String groupName = StringArgumentType.getString(ctx, "group");
+        GroupState groupState = GroupState.getState(ctx.getSource().getServer());
+        GroupComponent group = getGroup(groupState, groupName);
+
+        ServerPlayerEntity target = EntityArgumentType.getPlayer(ctx, "player");
+
+        if(group.owner().equals(target.getUuid())) {
+            throw ALREADY_GROUP_OWNER.create();
+        }
+
+        groupState.modifyGroup(group.withOwner(target.getUuid()));
+
+        ctx.getSource().sendFeedback(
+                () -> Text.literal("Successfully transferred group " + group.name() + " to ")
+                        .append(target.getName()),
+                true
+        );
+
+        return Command.SINGLE_SUCCESS;
     }
 }

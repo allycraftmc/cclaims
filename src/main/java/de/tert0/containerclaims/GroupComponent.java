@@ -20,6 +20,15 @@ public record GroupComponent(UUID uuid, String name, UUID owner, ImmutableSet<UU
                     .forGetter(GroupComponent::members)
     ).apply(instance, GroupComponent::new));
 
+    public GroupComponent withOwner(UUID owner) {
+        return new GroupComponent(
+                this.uuid,
+                this.name,
+                owner,
+                this.members
+        );
+    }
+
     public GroupComponent withMembers(ImmutableSet<UUID> members) {
         return new GroupComponent(
                 this.uuid,
