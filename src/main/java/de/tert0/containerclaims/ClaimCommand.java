@@ -56,6 +56,7 @@ public class ClaimCommand {
     private static final DynamicCommandExceptionType GROUP_LIMIT_REACHED = new DynamicCommandExceptionType(
             limit -> new LiteralMessage("You are not allowed to create more than " + limit + " groups")
     );
+    private static final SimpleCommandExceptionType GROUP_NOT_TRUSTED = new SimpleCommandExceptionType(new LiteralMessage("The group is not trusted"));
 
 
     private static final SimpleCommandExceptionType PERMISSION_DENIED = new SimpleCommandExceptionType(new LiteralMessage("Permission denied"));
@@ -89,12 +90,28 @@ public class ClaimCommand {
                                                     argument("targets", GameProfileArgumentType.gameProfile())
                                                             .executes(ClaimCommand::trustCommand)
                                             )
+                                            .then(
+                                                    literal("group")
+                                                            .then(
+                                                                    argument("group", StringArgumentType.word())
+                                                                            .suggests(GroupSuggestionProvider.member())
+                                                                            .executes(ClaimCommand::trustGroupCommand)
+                                                            )
+                                            )
                             )
                             .then(
                                     literal("untrust")
                                             .then(
                                                     argument("targets", GameProfileArgumentType.gameProfile())
                                                             .executes(ClaimCommand::untrustCommand)
+                                            )
+                                            .then(
+                                                    literal("group")
+                                                            .then(
+                                                                    argument("group", StringArgumentType.word())
+                                                                            .suggests(GroupSuggestionProvider.member())
+                                                                            .executes(ClaimCommand::untrustGroupCommand)
+                                                            )
                                             )
                             )
                             .then(
@@ -323,6 +340,39 @@ public class ClaimCommand {
                 }
             }
 
+            text.append("\n");
+            text.append("Trusted Groups: ");
+
+            GroupState groupState = GroupState.getState(ctx.getSource().getServer());
+            Collection<UUID> trustedGroupUUIDs = claimAccess.cclaims$getClaim().trustedGroups();
+
+            if(trustedGroupUUIDs.isEmpty()) {
+                text.append(Text.literal("¯\\_(ツ)_/¯").withColor(Colors.YELLOW));
+            } else {
+                for(UUID trustedGroupUuid : trustedGroupUUIDs) {
+                    text.append(Text.of("\n  - "));
+                    text.append(
+                            groupState.getGroups().stream()
+                                    .filter(g -> g.uuid().equals(trustedGroupUuid))
+                                    .findFirst()
+                                    .map(group ->
+                                            Text.literal(group.name())
+                                                    .withColor(Colors.LIGHT_YELLOW)
+                                                    .styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.of(
+                                                            getPlayerNameOrUuid(group.owner(), ctx.getSource().getServer()) + " (" + group.members().size() + ")"
+                                                    ))))
+                                    )
+                                    .orElse(
+                                            Text.literal(trustedGroupUuid.toString())
+                                                    .withColor(Colors.RED)
+                                                    .styled(style -> style
+                                                            .withHoverEvent(new HoverEvent.ShowText(Text.of("Group does not exist")))
+                                                    )
+                                    )
+                    );
+                }
+            }
+
             if(Permissions.check(player, "cclaim.info.admin", 2)) {
                 String formattedTimestamp = DateTimeFormatter.ISO_DATE_TIME
                         .withZone(ZoneOffset.UTC)
@@ -370,7 +420,7 @@ public class ClaimCommand {
         List<UUID> entries = new ArrayList<>();
         for(GameProfile target : targets) {
             entries.add(target.getId());
-            ctx.getSource().sendFeedback(() -> Text.of("Added " + target.getName() + " as trusted player"), false);
+            ctx.getSource().sendFeedback(() -> Text.of("Added " + target.getName() + " as a trusted player"), false);
         }
         ClaimUtils.trust(claimAccess, entries);
 
@@ -379,6 +429,22 @@ public class ClaimCommand {
         }
 
         return targets.size();
+    }
+
+    private static int trustGroupCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ClaimAccess claimAccess = getFocusedClaimAccess(ctx);
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        checkForOwnedClaim(claimAccess, player);
+
+        String groupName = StringArgumentType.getString(ctx, "group");
+        GroupState groupState = GroupState.getState(ctx.getSource().getServer());
+        GroupComponent group = getGroup(groupState, groupName);
+
+        ClaimUtils.trustGroup(claimAccess, group);
+
+        ctx.getSource().sendFeedback(() -> Text.literal("Added " + group.name() + " as a trusted group"), false);
+
+        return Command.SINGLE_SUCCESS;
     }
 
     private static int untrustCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
@@ -404,6 +470,26 @@ public class ClaimCommand {
         }
 
         return entries.size();
+    }
+
+    private static int untrustGroupCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ClaimAccess claimAccess = getFocusedClaimAccess(ctx);
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        checkForOwnedClaim(claimAccess, player);
+
+        String groupName = StringArgumentType.getString(ctx, "group");
+        GroupState groupState = GroupState.getState(ctx.getSource().getServer());
+        GroupComponent group = getGroup(groupState, groupName);
+
+        if(!claimAccess.cclaims$getClaim().trustedGroups().contains(group.uuid())) {
+            throw GROUP_NOT_TRUSTED.create();
+        }
+
+        ClaimUtils.untrustGroup(claimAccess, group);
+
+        ctx.getSource().sendFeedback(() -> Text.literal("Removed " + group.name() + " as a trusted group"), false);
+
+        return Command.SINGLE_SUCCESS;
     }
 
     private static int adminmodeCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
