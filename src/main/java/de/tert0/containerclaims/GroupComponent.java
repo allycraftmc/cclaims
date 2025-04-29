@@ -51,6 +51,6 @@ public record GroupComponent(UUID uuid, String name, UUID owner, ImmutableSet<UU
     }
 
     public boolean isMember(UUID uuid) {
-        return this.uuid.equals(uuid) || this.members.contains(uuid);
+        return this.owner.equals(uuid) || this.members.contains(uuid);
     }
 }

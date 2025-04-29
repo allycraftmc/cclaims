@@ -5,8 +5,6 @@ import de.tert0.containerclaims.ClaimAccess;
 import de.tert0.containerclaims.ContainerClaimMod;
 import de.tert0.containerclaims.GlobalClaimState;
 import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.nbt.*;
-import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.storage.ReadView;
 import net.minecraft.storage.WriteView;
@@ -38,6 +36,9 @@ public abstract class BlockEntityMixin implements ClaimAccess {
     @Unique
     private ClaimComponent claim;
 
+    @Unique
+    private boolean dataFixupCompleted = false;
+
     @Inject(method = "writeData", at = @At("RETURN"))
     private void writeNbt(WriteView view, CallbackInfo ci) {
         if(this.claim == null) return;
@@ -59,6 +60,11 @@ public abstract class BlockEntityMixin implements ClaimAccess {
     @Unique
     @Override
     public ClaimComponent cclaims$getClaim() {
+        if(this.claim != null && !this.dataFixupCompleted && this.getWorld() != null) {
+            this.claim = this.claim.fixup(this.getWorld().getServer());
+            this.markDirty();
+            this.dataFixupCompleted = true;
+        }
         return this.claim;
     }
 
