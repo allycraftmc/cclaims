@@ -200,24 +200,24 @@ public class ClaimCommand {
                                                             .executes(ClaimCommand::groupListCommand)
                                             )
                                             .then(
-                                                    literal("add")
+                                                    literal("join")
                                                             .then(
                                                                     argument("group", StringArgumentType.word())
                                                                             .suggests(GroupSuggestionProvider.owner())
                                                                             .then(
                                                                                     argument("targets", GameProfileArgumentType.gameProfile())
-                                                                                            .executes(ClaimCommand::groupAddMemberCommand)
+                                                                                            .executes(ClaimCommand::groupJoinCommand)
                                                                             )
                                                             )
                                             )
                                             .then(
-                                                    literal("remove")
+                                                    literal("leave")
                                                             .then(
                                                                     argument("group", StringArgumentType.word())
                                                                             .suggests(GroupSuggestionProvider.owner())
                                                                             .then(
                                                                                     argument("targets", GameProfileArgumentType.gameProfile())
-                                                                                            .executes(ClaimCommand::groupRemoveMemberCommand)
+                                                                                            .executes(ClaimCommand::groupLeaveCommand)
                                                                             )
                                                             )
                                             )
@@ -851,7 +851,7 @@ public class ClaimCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int groupAddMemberCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private static int groupJoinCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
 
         String groupName = StringArgumentType.getString(ctx, "group");
@@ -873,7 +873,7 @@ public class ClaimCommand {
         return gameProfiles.size();
     }
 
-    private static int groupRemoveMemberCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private static int groupLeaveCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
 
         String groupName = StringArgumentType.getString(ctx, "group");
