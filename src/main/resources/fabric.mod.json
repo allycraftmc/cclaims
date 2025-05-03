@@ -25,6 +25,7 @@
   },
   "custom": {
     "lithium:options": {
+      "mixin.block.hopper": false
     }
   }
 }
