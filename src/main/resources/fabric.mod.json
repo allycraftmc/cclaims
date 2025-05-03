@@ -7,7 +7,11 @@
   "authors": [
     "Tert0"
   ],
-  "contact": {},
+  "contact": {
+    "homepage": "https://github.com/allycraftmc/cclaims",
+    "issues": "https://github.com/allycraftmc/cclaims/issues",
+    "sources": "https://github.com/allycraftmc/cclaims"
+  },
   "license": "AGPL-3.0",
   "environment": "server",
   "entrypoints": {
