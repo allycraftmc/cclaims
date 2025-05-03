@@ -173,9 +173,9 @@ public class ClaimCommand {
                                     literal("group")
                                             .then(
                                                     literal("create")
+                                                            .requires(Permissions.require("cclaim.group.create", true))
                                                             .then(
                                                                     argument("group", StringArgumentType.word())
-                                                                            .requires(Permissions.require("cclaim.group.create", true))
                                                                             .executes(ClaimCommand::groupCreateCommand)
                                                             )
                                             )
