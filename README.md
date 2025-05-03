@@ -29,16 +29,4 @@ Claimed hoppers will push items into unclaimed containers. Therefore, you should
 The claim data is stored in the NBT data of the block entities.
 Additional metadata is stored in `world/data/cclaims.dat`.
 ## License
-```
-Copyright (c) Tert0 2025
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-```
+This project is licensed under the GNU Lesser General Public License version 3 only.
