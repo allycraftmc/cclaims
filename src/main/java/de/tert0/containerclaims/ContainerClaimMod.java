@@ -14,8 +14,8 @@ public class ContainerClaimMod implements ModInitializer {
 
     public static final String MOD_ID = "cclaims";
     public static final Identifier CLAIM_DATA_ID = Identifier.of(MOD_ID, "claim");
-    // TODO Furnaces, Shulker boxes, brewing stand, Crafter, Dispenser/Dropper, Trapped Chest, ...
-    public static final Set<BlockEntityType<?>> SUPPORTED_BLOCK_ENTITIES = Set.of(BlockEntityType.CHEST, BlockEntityType.BARREL, BlockEntityType.HOPPER);
+    // TODO Furnaces, Shulker boxes, Crafter, Dispenser/Dropper, Trapped Chest, ...
+    public static final Set<BlockEntityType<?>> SUPPORTED_BLOCK_ENTITIES = Set.of(BlockEntityType.CHEST, BlockEntityType.BARREL, BlockEntityType.HOPPER, BlockEntityType.BREWING_STAND, BlockEntityType.BEACON);
 
     @Override
     public void onInitialize() {
