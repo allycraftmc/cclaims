@@ -120,6 +120,7 @@ public class ClaimUtils {
 
     public static boolean isGroupTrusted(ClaimAccess claimAccess, ServerPlayerEntity player) {
         return GroupState.getState(player.getServerWorld().getServer()).getGroups().stream()
+                .filter(g -> g.isMember(player.getUuid()))
                 .anyMatch(g -> ClaimUtils.isGroupTrusted(claimAccess, g));
     }
 
