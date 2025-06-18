@@ -8,6 +8,8 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.nbt.*;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.storage.ReadView;
+import net.minecraft.storage.WriteView;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
@@ -36,13 +38,10 @@ public abstract class BlockEntityMixin implements ClaimAccess {
     @Unique
     private ClaimComponent claim;
 
-    @Inject(method = "writeNbt", at = @At("RETURN"))
-    private void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries, CallbackInfo ci) {
+    @Inject(method = "writeData", at = @At("RETURN"))
+    private void writeNbt(WriteView view, CallbackInfo ci) {
         if(this.claim == null) return;
-        NbtElement nbtClaim = ClaimComponent.CODEC.encodeStart(NbtOps.INSTANCE, this.claim)
-                .resultOrPartial(LOGGER::error)
-                .orElseThrow();
-        nbt.put(ContainerClaimMod.CLAIM_DATA_ID.toString(), nbtClaim);
+        view.put(ContainerClaimMod.CLAIM_DATA_ID.toString(), ClaimComponent.CODEC, this.claim);
 
         // to track claimed containers that were not directly claimed through the mod (e.g. modifying nbt or cloning a block entity)
         if(!this.isRemoved()) {
@@ -50,12 +49,10 @@ public abstract class BlockEntityMixin implements ClaimAccess {
         }
     }
 
-    @Inject(method = "readNbt", at = @At("RETURN"))
-    private void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries, CallbackInfo ci) {
-        nbt.getCompound(ContainerClaimMod.CLAIM_DATA_ID.toString()).ifPresent(nbtClaim -> {
-            this.claim = ClaimComponent.CODEC.parse(NbtOps.INSTANCE, nbtClaim)
-                    .resultOrPartial(LOGGER::error)
-                    .orElseThrow();
+    @Inject(method = "readData", at = @At("RETURN"))
+    private void readNbt(ReadView view, CallbackInfo ci) {
+        view.read(ContainerClaimMod.CLAIM_DATA_ID.toString(), ClaimComponent.CODEC).ifPresent(claim -> {
+            this.claim = claim;
         });
     }
 
