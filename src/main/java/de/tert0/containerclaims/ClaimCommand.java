@@ -90,7 +90,7 @@ public class ClaimCommand {
                             .then(
                                     literal("list")
                                             .requires(Permissions.require("cclaim.list", 2))
-                                            .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), ctx.getSource().getPlayerOrThrow().getServerWorld(), 1))
+                                            .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), ctx.getSource().getPlayerOrThrow().getWorld(), 1))
                                             .then(
                                                     argument("dimension", DimensionArgumentType.dimension())
                                                             .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), DimensionArgumentType.getDimensionArgument(ctx, "dimension"), 1))
@@ -116,7 +116,7 @@ public class ClaimCommand {
                                             .then(
                                                     literal("verify")
                                                             .requires(Permissions.require("cclaim.debug.verify", 4))
-                                                            .executes(ctx -> ClaimCommand.verifyCommand(ctx, ctx.getSource().getPlayerOrThrow().getServerWorld(), false))
+                                                            .executes(ctx -> ClaimCommand.verifyCommand(ctx, ctx.getSource().getPlayerOrThrow().getWorld(), false))
                                                             .then(
                                                                     argument("dimension", DimensionArgumentType.dimension())
                                                                             .executes(ctx -> ClaimCommand.verifyCommand(ctx, DimensionArgumentType.getDimensionArgument(ctx, "dimension"), false))
@@ -145,7 +145,7 @@ public class ClaimCommand {
             throw NO_CONTAINER_FOCUSED.create();
         }
         BlockPos pos = result.getBlockPos();
-        BlockEntity blockEntity = player.getServerWorld().getBlockEntity(pos);
+        BlockEntity blockEntity = player.getWorld().getBlockEntity(pos);
         if(blockEntity == null) {
             throw NO_CONTAINER_FOCUSED.create();
         }
@@ -284,7 +284,7 @@ public class ClaimCommand {
             throw ALREADY_CLAIMED.create();
         }
 
-        ClaimUtils.claim(claimAccess, player.getUuid(), player.getServerWorld());
+        ClaimUtils.claim(claimAccess, player.getUuid(), player.getWorld());
         ctx.getSource().sendFeedback(() -> Text.of("Claimed container"), false);
         return Command.SINGLE_SUCCESS;
     }
@@ -294,7 +294,7 @@ public class ClaimCommand {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         checkForOwnedClaim(claimAccess, player);
 
-        ClaimUtils.unclaim(claimAccess, player.getServerWorld());
+        ClaimUtils.unclaim(claimAccess, player.getWorld());
         ctx.getSource().sendFeedback(() -> Text.of("Unclaimed container"), false);
         return Command.SINGLE_SUCCESS;
     }
