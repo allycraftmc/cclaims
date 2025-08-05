@@ -11,7 +11,8 @@
     "HopperBlockEntityMixin",
     "PistonBlockMixin",
     "ServerPlayerEntityMixin",
-    "WorldMixin"
+    "WorldMixin",
+    "CopperGolemMixin"
   ],
   "injectors": {
     "defaultRequire": 1

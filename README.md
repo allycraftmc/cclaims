@@ -5,7 +5,7 @@ This mod provides the `/cclaim` command to work the claims.
 Permissions can be managed by [LuckPerms](https://github.com/LuckPerms/LuckPerms) or any other mod implementing the [fabric-permissions-api](https://github.com/lucko/fabric-permissions-api).
 
 **Features:**
-- Supported Container Blocks: Chests, Barrels, Hoppers, Brewing Stands and Beacons
+- Supported Container Blocks: Chests, Copper Chests, Barrels, Hoppers, Brewing Stands and Beacons
 - Prevents usage and destruction of claimed blocks by other players (except admin mode players)
   - Prevents destruction by explosions, headless pistons (aka. the bedrock breaking method) or the Ender dragon
 - Players can add ("trust") players to their claims.
