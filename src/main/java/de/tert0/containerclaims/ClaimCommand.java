@@ -1,6 +1,5 @@
 package de.tert0.containerclaims;
 
-import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.LiteralMessage;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -13,6 +12,7 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.command.argument.DimensionArgumentType;
 import net.minecraft.command.argument.GameProfileArgumentType;
 import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.server.PlayerConfigEntry;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -22,8 +22,8 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Colors;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.NameToIdCache;
 import net.minecraft.util.Pair;
-import net.minecraft.util.UserCache;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 
@@ -234,14 +234,14 @@ public class ClaimCommand {
         } else if(!ClaimUtils.canUse(claimAccess, player) && !Permissions.check(player, "cclaim.info.admin", 2)) {
             text.append(Text.literal("This container is claimed!").withColor(Colors.LIGHT_YELLOW));
         } else {
-            UserCache userCache = ctx.getSource().getServer().getUserCache();
+            NameToIdCache userCache = ctx.getSource().getServer().getNameToIdCache();
 
             text.append("Owner: ");
             UUID ownerUuid = claimAccess.cclaims$getClaim().owner();
             text.append(Text.literal(
                     Optional.ofNullable(userCache)
                             .flatMap(uc -> uc.getByUuid(ownerUuid))
-                            .map(GameProfile::getName)
+                            .map(PlayerConfigEntry::name)
                             .orElse(ownerUuid.toString())
             ).withColor(Colors.GREEN));
             text.append("\n");
@@ -256,7 +256,7 @@ public class ClaimCommand {
                     text.append(Text.literal(
                             Optional.ofNullable(userCache)
                                     .flatMap(uc -> uc.getByUuid(trustedUuid))
-                                    .map(GameProfile::getName)
+                                    .map(PlayerConfigEntry::name)
                                     .orElse(trustedUuid.toString())
                     ).withColor(Colors.LIGHT_YELLOW));
                 }
@@ -304,12 +304,12 @@ public class ClaimCommand {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         checkForOwnedClaim(claimAccess, player);
 
-        Collection<GameProfile> targets = GameProfileArgumentType.getProfileArgument(ctx, "targets");
+        Collection<PlayerConfigEntry> targets = GameProfileArgumentType.getProfileArgument(ctx, "targets");
 
         List<UUID> entries = new ArrayList<>();
-        for(GameProfile target : targets) {
-            entries.add(target.getId());
-            ctx.getSource().sendFeedback(() -> Text.of("Added " + target.getName() + " as trusted player"), false);
+        for(PlayerConfigEntry target : targets) {
+            entries.add(target.id());
+            ctx.getSource().sendFeedback(() -> Text.of("Added " + target.name() + " as trusted player"), false);
         }
         ClaimUtils.trust(claimAccess, entries);
 
@@ -325,15 +325,15 @@ public class ClaimCommand {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         checkForOwnedClaim(claimAccess, player);
 
-        Collection<GameProfile> targets = GameProfileArgumentType.getProfileArgument(ctx, "targets");
+        Collection<PlayerConfigEntry> targets = GameProfileArgumentType.getProfileArgument(ctx, "targets");
 
         List<UUID> entries = new ArrayList<>();
-        for(GameProfile target : targets) {
-            if(ClaimUtils.isTrusted(claimAccess, target.getId())) {
-                entries.add(target.getId());
-                ctx.getSource().sendFeedback(() -> Text.of("Removed " + target.getName() + " as a trusted player"), false);
+        for(PlayerConfigEntry target : targets) {
+            if(ClaimUtils.isTrusted(claimAccess, target.id())) {
+                entries.add(target.id());
+                ctx.getSource().sendFeedback(() -> Text.of("Removed " + target.name() + " as a trusted player"), false);
             } else {
-                ctx.getSource().sendFeedback(() -> Text.of(target.getName() + " was not trusted"), false);
+                ctx.getSource().sendFeedback(() -> Text.of(target.name() + " was not trusted"), false);
             }
         }
         ClaimUtils.untrust(claimAccess, entries);
@@ -422,12 +422,12 @@ public class ClaimCommand {
                     if(claimAccess != null) {
                         UUID ownerUuid = claimAccess.cclaims$getClaim().owner();
                         List<String> trustedNames = claimAccess.cclaims$getClaim().trusted().stream()
-                                .map(uuid -> serverWorld.getServer().getUserCache() != null ? serverWorld.getServer().getUserCache().getByUuid(uuid).map(GameProfile::getName).orElse(null) : null)
+                                .map(uuid -> serverWorld.getServer().getNameToIdCache() != null ? serverWorld.getServer().getNameToIdCache().getByUuid(uuid).map(PlayerConfigEntry::name).orElse(null) : null)
                                 .filter(Objects::nonNull)
                                 .toList();
-                        extraText = Optional.ofNullable(serverWorld.getServer().getUserCache())
+                        extraText = Optional.ofNullable(serverWorld.getServer().getNameToIdCache())
                                 .flatMap(userCache -> userCache.getByUuid(ownerUuid))
-                                .map(GameProfile::getName)
+                                .map(PlayerConfigEntry::name)
                                 .map(name ->
                                         Text.literal(" - " + name)
                                                 .withColor(Colors.YELLOW)
