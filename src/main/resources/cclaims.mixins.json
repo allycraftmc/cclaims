@@ -8,6 +8,7 @@
     "BlockEntityMixin",
     "BlockItemMixin",
     "CopperGolemMixin",
+    "DropperBlockMixin",
     "EnderDragonEntityMixin",
     "HopperBlockEntityMixin",
     "PistonBlockMixin",
