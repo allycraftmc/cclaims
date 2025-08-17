@@ -7,7 +7,7 @@
     "AbstractBlockMixin",
     "BlockEntityMixin",
     "BlockItemMixin",
-    "CopperGolemMixin",
+    "MoveItemsTaskMixin",
     "DropperBlockMixin",
     "EnderDragonEntityMixin",
     "HopperBlockEntityMixin",
