@@ -234,7 +234,7 @@ public class ClaimCommand {
         } else if(!ClaimUtils.canUse(claimAccess, player) && !Permissions.check(player, "cclaim.info.admin", 2)) {
             text.append(Text.literal("This container is claimed!").withColor(Colors.LIGHT_YELLOW));
         } else {
-            NameToIdCache userCache = ctx.getSource().getServer().getNameToIdCache();
+            NameToIdCache userCache = ctx.getSource().getServer().getApiServices().nameToIdCache();
 
             text.append("Owner: ");
             UUID ownerUuid = claimAccess.cclaims$getClaim().owner();
@@ -422,10 +422,10 @@ public class ClaimCommand {
                     if(claimAccess != null) {
                         UUID ownerUuid = claimAccess.cclaims$getClaim().owner();
                         List<String> trustedNames = claimAccess.cclaims$getClaim().trusted().stream()
-                                .map(uuid -> serverWorld.getServer().getNameToIdCache() != null ? serverWorld.getServer().getNameToIdCache().getByUuid(uuid).map(PlayerConfigEntry::name).orElse(null) : null)
+                                .map(uuid -> serverWorld.getServer().getApiServices().nameToIdCache() != null ? serverWorld.getServer().getApiServices().nameToIdCache().getByUuid(uuid).map(PlayerConfigEntry::name).orElse(null) : null)
                                 .filter(Objects::nonNull)
                                 .toList();
-                        extraText = Optional.ofNullable(serverWorld.getServer().getNameToIdCache())
+                        extraText = Optional.ofNullable(serverWorld.getServer().getApiServices().nameToIdCache())
                                 .flatMap(userCache -> userCache.getByUuid(ownerUuid))
                                 .map(PlayerConfigEntry::name)
                                 .map(name ->
