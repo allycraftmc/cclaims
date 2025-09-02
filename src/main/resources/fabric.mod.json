@@ -25,7 +25,7 @@
   "depends": {
     "fabricloader": ">=${loader_version}",
     "fabric": "*",
-    "minecraft": "1.21.9-alpha.25.35.a"
+    "minecraft": "1.21.9-alpha.25.36.a"
   },
   "custom": {
     "lithium:options": {
