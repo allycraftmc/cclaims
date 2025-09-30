@@ -12,12 +12,12 @@ import org.jetbrains.annotations.Nullable;
 
 public class DoubleChestUtils {
     public static @Nullable BlockEntity getNeighborBlockEntity(BlockPos pos, World world, BlockState state) {
-        if(!state.getBlock().equals(Blocks.CHEST)) return null;
+        if(!state.getBlock().equals(Blocks.CHEST) && !state.getBlock().equals(Blocks.COPPER_CHEST)) return null;
 
         ChestType chestType = state.get(ChestBlock.CHEST_TYPE);
         if(chestType == ChestType.SINGLE) return null;
 
-        BlockPos otherPos = pos.offset(ChestBlock.getFacing(state));
+        BlockPos otherPos = pos.offset(ChestBlock.getFacing(state)); // should work with copper chests too
 
         BlockEntity blockEntity = world.getBlockEntity(otherPos);
         if(blockEntity == null || !blockEntity.getType().equals(BlockEntityType.CHEST)) return null;

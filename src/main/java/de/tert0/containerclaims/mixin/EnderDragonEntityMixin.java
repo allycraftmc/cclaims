@@ -23,7 +23,7 @@ public abstract class EnderDragonEntityMixin extends MobEntity {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/block/BlockState;isIn(Lnet/minecraft/registry/tag/TagKey;)Z", ordinal = 1)
     )
     boolean isDragonImmune(boolean original, @Local BlockPos blockPos) {
-        ClaimAccess claimAccess = (ClaimAccess) this.getWorld().getBlockEntity(blockPos);
+        ClaimAccess claimAccess = (ClaimAccess) this.getEntityWorld().getBlockEntity(blockPos);
         if(claimAccess != null && ClaimUtils.isClaimed(claimAccess)) {
            return true;
         }

@@ -11,8 +11,6 @@ import net.minecraft.storage.WriteView;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -24,8 +22,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class BlockEntityMixin implements ClaimAccess {
     @Shadow
     public abstract void markDirty();
-
-    @Shadow @Final private static Logger LOGGER;
 
     @Shadow @Nullable public abstract World getWorld();
 
@@ -52,14 +48,12 @@ public abstract class BlockEntityMixin implements ClaimAccess {
 
     @Inject(method = "readData", at = @At("RETURN"))
     private void readNbt(ReadView view, CallbackInfo ci) {
-        view.read(ContainerClaimMod.CLAIM_DATA_ID.toString(), ClaimComponent.CODEC).ifPresent(claim -> {
-            this.claim = claim;
-        });
+        view.read(ContainerClaimMod.CLAIM_DATA_ID.toString(), ClaimComponent.CODEC).ifPresent(claim -> this.claim = claim);
     }
 
     @Unique
     @Override
-    public ClaimComponent cclaims$getClaim() {
+    public @Nullable ClaimComponent cclaims$getClaim() {
         if(this.claim != null && !this.dataFixupCompleted && this.getWorld() != null) {
             this.claim = this.claim.fixup(this.getWorld().getServer());
             this.markDirty();

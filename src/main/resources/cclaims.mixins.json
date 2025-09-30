@@ -7,10 +7,13 @@
     "AbstractBlockMixin",
     "BlockEntityMixin",
     "BlockItemMixin",
+    "MoveItemsTaskMixin",
+    "DropperBlockMixin",
     "EnderDragonEntityMixin",
     "HopperBlockEntityMixin",
     "PistonBlockMixin",
     "ServerPlayerEntityMixin",
+    "ShelfBlockMixin",
     "WorldMixin"
   ],
   "injectors": {

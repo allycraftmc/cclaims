@@ -1,7 +1,6 @@
 package de.tert0.containerclaims;
 
 import com.google.common.collect.ImmutableSet;
-import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.LiteralMessage;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -18,6 +17,7 @@ import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.command.argument.GameProfileArgumentType;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.PlayerConfigEntry;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -124,7 +124,7 @@ public class ClaimCommand {
                             .then(
                                     literal("list")
                                             .requires(Permissions.require("cclaim.list", 2))
-                                            .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), ctx.getSource().getPlayerOrThrow().getWorld(), 1))
+                                            .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), ctx.getSource().getPlayerOrThrow().getEntityWorld(), 1))
                                             .then(
                                                     argument("dimension", DimensionArgumentType.dimension())
                                                             .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), DimensionArgumentType.getDimensionArgument(ctx, "dimension"), 1))
@@ -150,7 +150,7 @@ public class ClaimCommand {
                                             .then(
                                                     literal("verify")
                                                             .requires(Permissions.require("cclaim.debug.verify", 4))
-                                                            .executes(ctx -> ClaimCommand.verifyCommand(ctx, ctx.getSource().getPlayerOrThrow().getWorld(), false))
+                                                            .executes(ctx -> ClaimCommand.verifyCommand(ctx, ctx.getSource().getPlayerOrThrow().getEntityWorld(), false))
                                                             .then(
                                                                     argument("dimension", DimensionArgumentType.dimension())
                                                                             .executes(ctx -> ClaimCommand.verifyCommand(ctx, DimensionArgumentType.getDimensionArgument(ctx, "dimension"), false))
@@ -244,7 +244,7 @@ public class ClaimCommand {
             throw NO_CONTAINER_FOCUSED.create();
         }
         BlockPos pos = result.getBlockPos();
-        BlockEntity blockEntity = player.getWorld().getBlockEntity(pos);
+        BlockEntity blockEntity = player.getEntityWorld().getBlockEntity(pos);
         if(blockEntity == null) {
             throw NO_CONTAINER_FOCUSED.create();
         }
@@ -409,7 +409,7 @@ public class ClaimCommand {
             throw ALREADY_CLAIMED.create();
         }
 
-        ClaimUtils.claim(claimAccess, player.getUuid(), player.getWorld());
+        ClaimUtils.claim(claimAccess, player.getUuid(), player.getEntityWorld());
         ctx.getSource().sendFeedback(() -> Text.of("Claimed container"), false);
         return Command.SINGLE_SUCCESS;
     }
@@ -419,7 +419,7 @@ public class ClaimCommand {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         checkForOwnedClaim(claimAccess, player);
 
-        ClaimUtils.unclaim(claimAccess, player.getWorld());
+        ClaimUtils.unclaim(claimAccess, player.getEntityWorld());
         ctx.getSource().sendFeedback(() -> Text.of("Unclaimed container"), false);
         return Command.SINGLE_SUCCESS;
     }
@@ -429,12 +429,12 @@ public class ClaimCommand {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         checkForOwnedClaim(claimAccess, player);
 
-        Collection<GameProfile> targets = GameProfileArgumentType.getProfileArgument(ctx, "targets");
+        Collection<PlayerConfigEntry> targets = GameProfileArgumentType.getProfileArgument(ctx, "targets");
 
         List<UUID> entries = new ArrayList<>();
-        for(GameProfile target : targets) {
-            entries.add(target.getId());
-            ctx.getSource().sendFeedback(() -> Text.of("Added " + target.getName() + " as a trusted player"), false);
+        for(PlayerConfigEntry target : targets) {
+            entries.add(target.id());
+            ctx.getSource().sendFeedback(() -> Text.of("Added " + target.name() + " as trusted player"), false);
         }
         ClaimUtils.trust(claimAccess, entries);
 
@@ -466,15 +466,15 @@ public class ClaimCommand {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         checkForOwnedClaim(claimAccess, player);
 
-        Collection<GameProfile> targets = GameProfileArgumentType.getProfileArgument(ctx, "targets");
+        Collection<PlayerConfigEntry> targets = GameProfileArgumentType.getProfileArgument(ctx, "targets");
 
         List<UUID> entries = new ArrayList<>();
-        for(GameProfile target : targets) {
-            if(ClaimUtils.isTrusted(claimAccess, target.getId())) {
-                entries.add(target.getId());
-                ctx.getSource().sendFeedback(() -> Text.of("Removed " + target.getName() + " as a trusted player"), false);
+        for(PlayerConfigEntry target : targets) {
+            if(ClaimUtils.isTrusted(claimAccess, target.id())) {
+                entries.add(target.id());
+                ctx.getSource().sendFeedback(() -> Text.of("Removed " + target.name() + " as a trusted player"), false);
             } else {
-                ctx.getSource().sendFeedback(() -> Text.of(target.getName() + " was not trusted"), false);
+                ctx.getSource().sendFeedback(() -> Text.of(target.name() + " was not trusted"), false);
             }
         }
         ClaimUtils.untrust(claimAccess, entries);
@@ -547,9 +547,9 @@ public class ClaimCommand {
 
     @NotNull
     private static String getPlayerNameOrUuid(UUID uuid, MinecraftServer server) {
-        return Optional.ofNullable(server.getUserCache())
+        return Optional.ofNullable(server.getApiServices().nameToIdCache())
                 .flatMap(userCache -> userCache.getByUuid(uuid))
-                .map(GameProfile::getName)
+                .map(PlayerConfigEntry::name)
                 .orElse(uuid.toString());
     }
 
@@ -862,12 +862,12 @@ public class ClaimCommand {
             throw PERMISSION_DENIED.create();
         }
 
-        Collection<GameProfile> gameProfiles = GameProfileArgumentType.getProfileArgument(ctx, "targets");
+        Collection<PlayerConfigEntry> gameProfiles = GameProfileArgumentType.getProfileArgument(ctx, "targets");
 
-        groupState.modifyGroup(group.addMembers(gameProfiles.stream().map(GameProfile::getId).toList()));
+        groupState.modifyGroup(group.addMembers(gameProfiles.stream().map(PlayerConfigEntry::id).toList()));
 
-        for(GameProfile gameProfile : gameProfiles) {
-            ctx.getSource().sendFeedback(() -> Text.of("Added " + gameProfile.getName() + " to the group"), false);
+        for(PlayerConfigEntry gameProfile : gameProfiles) {
+            ctx.getSource().sendFeedback(() -> Text.of("Added " + gameProfile.name() + " to the group"), false);
         }
 
         return gameProfiles.size();
@@ -884,17 +884,17 @@ public class ClaimCommand {
             throw PERMISSION_DENIED.create();
         }
 
-        Collection<GameProfile> gameProfiles = GameProfileArgumentType.getProfileArgument(ctx, "targets");
+        Collection<PlayerConfigEntry> gameProfiles = GameProfileArgumentType.getProfileArgument(ctx, "targets");
 
-        groupState.modifyGroup(group.removeMembers(gameProfiles.stream().map(GameProfile::getId).toList()));
+        groupState.modifyGroup(group.removeMembers(gameProfiles.stream().map(PlayerConfigEntry::id).toList()));
 
         int count = 0;
-        for(GameProfile gameProfile : gameProfiles) {
-            if(group.members().contains(gameProfile.getId())) {
-                ctx.getSource().sendFeedback(() -> Text.of("Removed " + gameProfile.getName() + " from the group"), false);
+        for(PlayerConfigEntry gameProfile : gameProfiles) {
+            if(group.members().contains(gameProfile.id())) {
+                ctx.getSource().sendFeedback(() -> Text.of("Removed " + gameProfile.name() + " from the group"), false);
                 count++;
             } else {
-                ctx.getSource().sendFeedback(() -> Text.of(gameProfile.getName() + " was not a member of the group"), false);
+                ctx.getSource().sendFeedback(() -> Text.of(gameProfile.name() + " was not a member of the group"), false);
             }
         }
 
