@@ -32,6 +32,9 @@ public abstract class BlockEntityMixin implements ClaimAccess {
     @Unique
     private ClaimComponent claim;
 
+    @Unique
+    private boolean dataFixupCompleted = false;
+
     @Inject(method = "writeData", at = @At("RETURN"))
     private void writeNbt(WriteView view, CallbackInfo ci) {
         if(this.claim == null) return;
@@ -51,6 +54,11 @@ public abstract class BlockEntityMixin implements ClaimAccess {
     @Unique
     @Override
     public @Nullable ClaimComponent cclaims$getClaim() {
+        if(this.claim != null && !this.dataFixupCompleted && this.getWorld() != null) {
+            this.claim = this.claim.fixup(this.getWorld().getServer());
+            this.markDirty();
+            this.dataFixupCompleted = true;
+        }
         return this.claim;
     }
 
