@@ -1,7 +1,7 @@
 # CClaims: A container claim mod for fabric
 Claims is a Fabric server-side mod to claim and protect container blocks (e.g. Chest, Barrels and Hoppers).
 
-This mod provides the `/cclaim` command to work the claims.
+This mod provides the `/cclaim` command to work with the claims.
 Permissions can be managed by [LuckPerms](https://github.com/LuckPerms/LuckPerms) or any other mod implementing the [fabric-permissions-api](https://github.com/lucko/fabric-permissions-api).
 
 **Features:**
