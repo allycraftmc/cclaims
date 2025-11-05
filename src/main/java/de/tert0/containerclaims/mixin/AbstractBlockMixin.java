@@ -6,6 +6,7 @@ import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
@@ -30,7 +31,7 @@ public class AbstractBlockMixin {
         ClaimAccess claimAccess = (ClaimAccess) world.getBlockEntity(pos);
         if(claimAccess == null || !ClaimUtils.isClaimed(claimAccess)) return;
 
-        if(!ClaimUtils.canUse(claimAccess, player)) {
+        if(!ClaimUtils.canUse(claimAccess, (ServerPlayerEntity) player)) {
             player.sendMessage(Text.literal("This block is claimed!").withColor(Colors.RED), true);
             cir.setReturnValue(ActionResult.SUCCESS); // this will prevent the default action
         }
