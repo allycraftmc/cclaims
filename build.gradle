@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.11-SNAPSHOT'
+    id 'fabric-loom' version "${loom_version}"
     id 'maven-publish'
 }
 
@@ -73,8 +73,9 @@ java {
 }
 
 jar {
+    inputs.property "archivesName", project.base.archivesName
     from("LICENSE") {
-        rename { "${it}_${project.archivesBaseName}" }
+        rename { "${it}_${inputs.properties.archivesName}" }
     }
 }
 
