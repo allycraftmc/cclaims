@@ -3,15 +3,15 @@ package de.tert0.containerclaims;
 import com.google.common.collect.ImmutableSet;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.PersistentState;
-import net.minecraft.world.PersistentStateManager;
-import net.minecraft.world.PersistentStateType;
-
 import java.util.*;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.world.level.storage.DimensionDataStorage;
+import org.jetbrains.annotations.NotNull;
 
-public class GlobalClaimState extends PersistentState {
+public class GlobalClaimState extends SavedData {
     private final HashSet<BlockPos> positions;
 
     private static final Codec<GlobalClaimState> CODEC = RecordCodecBuilder.create(
@@ -24,7 +24,7 @@ public class GlobalClaimState extends PersistentState {
             ).apply(instance, GlobalClaimState::new)
     );
 
-    private static final PersistentStateType<GlobalClaimState> STATE_TYPE = new PersistentStateType<>(
+    private static final SavedDataType<@NotNull GlobalClaimState> STATE_TYPE = new SavedDataType<>(
             ContainerClaimMod.MOD_ID,
             GlobalClaimState::createDefault,
             GlobalClaimState.CODEC,
@@ -35,27 +35,27 @@ public class GlobalClaimState extends PersistentState {
         this.positions = positions;
     }
 
-    public ImmutableSet<BlockPos> getPositions() {
+    public ImmutableSet<@NotNull BlockPos> getPositions() {
         return ImmutableSet.copyOf(this.positions);
     }
 
     public void addPosition(BlockPos pos) {
         this.positions.add(pos);
-        this.markDirty();
+        this.setDirty();
     }
 
     public void removePosition(BlockPos pos) {
         this.positions.remove(pos);
-        this.markDirty();
+        this.setDirty();
     }
 
     private static GlobalClaimState createDefault() {
         return new GlobalClaimState(new HashSet<>());
     }
 
-    public static GlobalClaimState getWorldState(ServerWorld world) {
-        PersistentStateManager persistentStateManager = world.getPersistentStateManager();
+    public static GlobalClaimState getWorldState(ServerLevel world) {
+        DimensionDataStorage persistentStateManager = world.getDataStorage();
 
-        return persistentStateManager.getOrCreate(STATE_TYPE);
+        return persistentStateManager.computeIfAbsent(STATE_TYPE);
     }
 }

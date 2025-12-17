@@ -4,8 +4,9 @@ import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableSet;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.Uuids;
+import org.jetbrains.annotations.NotNull;
 
 import java.time.Instant;
 import java.util.Collection;
@@ -13,19 +14,19 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-public record ClaimComponent(UUID owner, Instant timestamp, ImmutableSet<UUID> trusted, ImmutableSet<UUID> trustedGroups) {
+public record ClaimComponent(UUID owner, Instant timestamp, ImmutableSet<@NotNull UUID> trusted, ImmutableSet<@NotNull UUID> trustedGroups) {
     public static final Codec<ClaimComponent> CODEC = RecordCodecBuilder
             .create(instance ->
                     instance
                             .group(
-                                    Uuids.INT_STREAM_CODEC.fieldOf("owner").forGetter(ClaimComponent::owner),
+                                    UUIDUtil.CODEC.fieldOf("owner").forGetter(ClaimComponent::owner),
                                     Codec.LONG
                                             .xmap(Instant::ofEpochMilli, Instant::toEpochMilli)
                                             .fieldOf("timestamp").forGetter(ClaimComponent::timestamp),
-                                    Uuids.INT_STREAM_CODEC.listOf()
+                                    UUIDUtil.CODEC.listOf()
                                             .xmap(ImmutableSet::copyOf, ImmutableCollection::asList)
                                             .fieldOf("trusted").forGetter(ClaimComponent::trusted),
-                                    Uuids.INT_STREAM_CODEC.listOf()
+                                    UUIDUtil.CODEC.listOf()
                                             .xmap(ImmutableSet::copyOf, ImmutableCollection::asList)
                                             .optionalFieldOf("trusted_groups")
                                             .xmap(o -> o.orElse(ImmutableSet.of()), Optional::of) // like default value but saving the default value
@@ -34,7 +35,7 @@ public record ClaimComponent(UUID owner, Instant timestamp, ImmutableSet<UUID> t
                             .apply(instance, ClaimComponent::new)
             );
 
-    public ClaimComponent withTrusted(ImmutableSet<UUID> trusted) {
+    public ClaimComponent withTrusted(ImmutableSet<@NotNull UUID> trusted) {
         return new ClaimComponent(this.owner, this.timestamp, trusted, this.trustedGroups);
     }
 
@@ -55,7 +56,7 @@ public record ClaimComponent(UUID owner, Instant timestamp, ImmutableSet<UUID> t
         );
     }
 
-    public ClaimComponent withTrustedGroups(ImmutableSet<UUID> trustedGroups) {
+    public ClaimComponent withTrustedGroups(ImmutableSet<@NotNull UUID> trustedGroups) {
         return new ClaimComponent(this.owner, this.timestamp, this.trusted, trustedGroups);
     }
 

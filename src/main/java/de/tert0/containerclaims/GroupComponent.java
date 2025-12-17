@@ -4,18 +4,18 @@ import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableSet;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.Uuids;
-
 import java.util.Collection;
 import java.util.UUID;
+import net.minecraft.core.UUIDUtil;
+import net.minecraft.world.entity.player.Player;
+import org.jetbrains.annotations.NotNull;
 
-public record GroupComponent(UUID uuid, String name, UUID owner, ImmutableSet<UUID> members) {
+public record GroupComponent(UUID uuid, String name, UUID owner, ImmutableSet<@NotNull UUID> members) {
     public static final Codec<GroupComponent> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Uuids.INT_STREAM_CODEC.fieldOf("uuid").forGetter(GroupComponent::uuid),
+            UUIDUtil.CODEC.fieldOf("uuid").forGetter(GroupComponent::uuid),
             Codec.STRING.fieldOf("name").forGetter(GroupComponent::name),
-            Uuids.INT_STREAM_CODEC.fieldOf("owner").forGetter(GroupComponent::owner),
-            Uuids.INT_STREAM_CODEC.listOf().fieldOf("members")
+            UUIDUtil.CODEC.fieldOf("owner").forGetter(GroupComponent::owner),
+            UUIDUtil.CODEC.listOf().fieldOf("members")
                     .xmap(ImmutableSet::copyOf, ImmutableCollection::asList)
                     .forGetter(GroupComponent::members)
     ).apply(instance, GroupComponent::new));
@@ -29,7 +29,7 @@ public record GroupComponent(UUID uuid, String name, UUID owner, ImmutableSet<UU
         );
     }
 
-    public GroupComponent withMembers(ImmutableSet<UUID> members) {
+    public GroupComponent withMembers(ImmutableSet<@NotNull UUID> members) {
         return new GroupComponent(
                 this.uuid,
                 this.name,
@@ -55,8 +55,8 @@ public record GroupComponent(UUID uuid, String name, UUID owner, ImmutableSet<UU
         );
     }
 
-    public boolean isMember(PlayerEntity player) {
-        return this.isMember(player.getUuid());
+    public boolean isMember(Player player) {
+        return this.isMember(player.getUUID());
     }
 
     public boolean isMember(UUID uuid) {

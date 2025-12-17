@@ -1,28 +1,27 @@
 package de.tert0.containerclaims;
 
 import com.google.common.collect.ImmutableSet;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-
 import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.block.entity.BlockEntity;
 
 public class ClaimUtils {
-    public static void markClaimed(ClaimAccess claimAccess, ServerWorld serverWorld) {
+    public static void markClaimed(ClaimAccess claimAccess, ServerLevel serverWorld) {
         BlockEntity blockEntity = (BlockEntity) claimAccess;
-        GlobalClaimState.getWorldState(serverWorld).addPosition(blockEntity.getPos());
+        GlobalClaimState.getWorldState(serverWorld).addPosition(blockEntity.getBlockPos());
     }
 
-    public static void claim(ClaimAccess claimAccess, UUID uuid, ServerWorld serverWorld) {
+    public static void claim(ClaimAccess claimAccess, UUID uuid, ServerLevel serverWorld) {
         ClaimComponent claim = new ClaimComponent(uuid, Instant.now(), ImmutableSet.of(), ImmutableSet.of());
 
         claimAccess.cclaims$setClaim(claim);
         markClaimed(claimAccess, serverWorld);
 
-        BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getPos(), serverWorld);
+        BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getBlockPos(), serverWorld);
         if(blockEntity != null) {
             ClaimAccess otherClaimAccess = (ClaimAccess) blockEntity;
             otherClaimAccess.cclaims$setClaim(claim);
@@ -30,16 +29,16 @@ public class ClaimUtils {
         }
     }
 
-    public static void markUnclaimed(ClaimAccess claimAccess, ServerWorld serverWorld) {
+    public static void markUnclaimed(ClaimAccess claimAccess, ServerLevel serverWorld) {
         BlockEntity blockEntity = (BlockEntity) claimAccess;
-        GlobalClaimState.getWorldState(serverWorld).removePosition(blockEntity.getPos());
+        GlobalClaimState.getWorldState(serverWorld).removePosition(blockEntity.getBlockPos());
     }
 
-    public static void unclaim(ClaimAccess claimAccess, ServerWorld serverWorld) {
+    public static void unclaim(ClaimAccess claimAccess, ServerLevel serverWorld) {
         claimAccess.cclaims$setClaim(null);
         markUnclaimed(claimAccess, serverWorld);
 
-        BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getPos(), serverWorld);
+        BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getBlockPos(), serverWorld);
         if(blockEntity != null) {
             ClaimAccess otherClaimAccess = (ClaimAccess) blockEntity;
             otherClaimAccess.cclaims$setClaim(null);
@@ -52,7 +51,7 @@ public class ClaimUtils {
                 .addTrusted(entries);
         claimAccess.cclaims$setClaim(claim);
 
-        BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getPos(), ((BlockEntity) claimAccess).getWorld());
+        BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getBlockPos(), ((BlockEntity) claimAccess).getLevel());
         if(blockEntity != null) {
             ClaimAccess otherClaimAccess = (ClaimAccess) blockEntity;
             otherClaimAccess.cclaims$setClaim(claim);
@@ -64,7 +63,7 @@ public class ClaimUtils {
                 .addTrustedGroups(ImmutableSet.of(group.uuid()));
         claimAccess.cclaims$setClaim(claim);
 
-        BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getPos(), ((BlockEntity) claimAccess).getWorld());
+        BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getBlockPos(), ((BlockEntity) claimAccess).getLevel());
         if(blockEntity != null) {
             ClaimAccess otherClaimAccess = (ClaimAccess) blockEntity;
             otherClaimAccess.cclaims$setClaim(claim);
@@ -76,7 +75,7 @@ public class ClaimUtils {
                 .removeTrusted(entries);
         claimAccess.cclaims$setClaim(claim);
 
-        BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getPos(), ((BlockEntity) claimAccess).getWorld());
+        BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getBlockPos(), ((BlockEntity) claimAccess).getLevel());
         if(blockEntity != null) {
             ClaimAccess otherClaimAccess = (ClaimAccess) blockEntity;
             otherClaimAccess.cclaims$setClaim(claim);
@@ -88,7 +87,7 @@ public class ClaimUtils {
                 .removeTrustedGroups(ImmutableSet.of(group.uuid()));
         claimAccess.cclaims$setClaim(claim);
 
-        BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getPos(), ((BlockEntity) claimAccess).getWorld());
+        BlockEntity blockEntity = DoubleChestUtils.getNeighborBlockEntity(((BlockEntity) claimAccess).getBlockPos(), ((BlockEntity) claimAccess).getLevel());
         if(blockEntity != null) {
             ClaimAccess otherClaimAccess = (ClaimAccess) blockEntity;
             otherClaimAccess.cclaims$setClaim(claim);
@@ -103,11 +102,11 @@ public class ClaimUtils {
         return claimAccess.cclaims$getClaim().owner().equals(uuid);
     }
 
-    public static boolean isOwnerOrAdmin(ClaimAccess claimAccess, PlayerEntity player) {
+    public static boolean isOwnerOrAdmin(ClaimAccess claimAccess, Player player) {
         if(player instanceof AdminModeAccess adminModeAccess && adminModeAccess.cclaims$getAdminMode()) {
             return true;
         }
-        return isOwner(claimAccess, player.getUuid());
+        return isOwner(claimAccess, player.getUUID());
     }
 
     public static boolean isTrusted(ClaimAccess claimAccess, UUID uuid) {
@@ -118,13 +117,13 @@ public class ClaimUtils {
         return claimAccess.cclaims$getClaim().trustedGroups().contains(group.uuid());
     }
 
-    public static boolean isGroupTrusted(ClaimAccess claimAccess, ServerPlayerEntity player) {
-        return GroupState.getState(player.getEntityWorld().getServer()).getGroups().stream()
-                .filter(g -> g.isMember(player.getUuid()))
+    public static boolean isGroupTrusted(ClaimAccess claimAccess, ServerPlayer player) {
+        return GroupState.getState(player.level().getServer()).getGroups().stream()
+                .filter(g -> g.isMember(player.getUUID()))
                 .anyMatch(g -> ClaimUtils.isGroupTrusted(claimAccess, g));
     }
 
-    public static boolean canUse(ClaimAccess claimAccess, ServerPlayerEntity player) {
-        return isOwnerOrAdmin(claimAccess, player) || isTrusted(claimAccess, player.getUuid()) || isGroupTrusted(claimAccess, player);
+    public static boolean canUse(ClaimAccess claimAccess, ServerPlayer player) {
+        return isOwnerOrAdmin(claimAccess, player) || isTrusted(claimAccess, player.getUUID()) || isGroupTrusted(claimAccess, player);
     }
 }

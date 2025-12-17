@@ -3,18 +3,18 @@ package de.tert0.containerclaims.mixin;
 import de.tert0.containerclaims.ClaimAccess;
 import de.tert0.containerclaims.ClaimUtils;
 import de.tert0.containerclaims.DoubleChestUtils;
-import net.minecraft.block.BlockState;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.ItemPlacementContext;
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Colors;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.CommonColors;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -23,27 +23,27 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(BlockItem.class)
 public abstract class BlockItemMixin {
-    @Inject(method = "place(Lnet/minecraft/item/ItemPlacementContext;Lnet/minecraft/block/BlockState;)Z", at = @At("HEAD"), cancellable = true)
-    void place(ItemPlacementContext context, BlockState state, CallbackInfoReturnable<Boolean> cir) {
+    @Inject(method = "placeBlock(Lnet/minecraft/world/item/context/BlockPlaceContext;Lnet/minecraft/world/level/block/state/BlockState;)Z", at = @At("HEAD"), cancellable = true)
+    void placeBlock(BlockPlaceContext context, BlockState state, CallbackInfoReturnable<Boolean> cir) {
         if(context.getPlayer() == null) return; // TODO
-        ServerPlayerEntity player = (ServerPlayerEntity) context.getPlayer();
+        ServerPlayer player = (ServerPlayer) context.getPlayer();
 
-        ClaimAccess claimAccess = (ClaimAccess) DoubleChestUtils.getNeighborBlockEntity(context.getBlockPos(), context.getWorld(), state);
+        ClaimAccess claimAccess = (ClaimAccess) DoubleChestUtils.getNeighborBlockEntity(context.getClickedPos(), context.getLevel(), state);
         if(claimAccess != null && ClaimUtils.isClaimed(claimAccess)) {
             if(!ClaimUtils.isOwnerOrAdmin(claimAccess, player)) {
-                player.sendMessage(Text.literal("The other chest is claimed!").withColor(Colors.RED), true);
+                player.displayClientMessage(Component.literal("The other chest is claimed!").withColor(CommonColors.RED), true);
                 int slot = switch (context.getHand()) {
                     case MAIN_HAND -> player.getInventory().getSelectedSlot();
-                    case OFF_HAND -> PlayerInventory.OFF_HAND_SLOT;
+                    case OFF_HAND -> Inventory.SLOT_OFFHAND;
                 };
-                player.networkHandler.sendPacket(player.getInventory().createSlotSetPacket(slot));
+                player.connection.send(player.getInventory().createInventoryUpdatePacket(slot));
                 cir.setReturnValue(false);
             }
         }
     }
 
-    @Inject(method = "postPlacement", at = @At("RETURN"))
-    void postPlacement(BlockPos pos, World world, @Nullable PlayerEntity player, ItemStack stack, BlockState state, CallbackInfoReturnable<Boolean> cir) {
+    @Inject(method = "updateCustomBlockEntityTag(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/level/block/state/BlockState;)Z", at = @At("RETURN"))
+    void updateCustomBlockEntityTag(BlockPos pos, Level world, @Nullable Player player, ItemStack stack, BlockState state, CallbackInfoReturnable<Boolean> cir) {
         if(player == null) return; // TODO
 
         ClaimAccess claimAccess = (ClaimAccess) DoubleChestUtils.getNeighborBlockEntity(pos, world, state);
@@ -51,9 +51,9 @@ public abstract class BlockItemMixin {
             ClaimAccess newClaimAccess = (ClaimAccess) world.getBlockEntity(pos);
             if(newClaimAccess != null) {
                 newClaimAccess.cclaims$setClaim(claimAccess.cclaims$getClaim());
-                ClaimUtils.markClaimed(newClaimAccess, (ServerWorld) world);
+                ClaimUtils.markClaimed(newClaimAccess, (ServerLevel) world);
             } else {
-                player.sendMessage(Text.literal("Unable to apply claim to double chest. Please report this issue!").withColor(Colors.RED), false);
+                player.displayClientMessage(Component.literal("Unable to apply claim to double chest. Please report this issue!").withColor(CommonColors.RED), false);
             }
         }
     }

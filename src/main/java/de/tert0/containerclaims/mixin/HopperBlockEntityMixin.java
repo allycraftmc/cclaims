@@ -2,12 +2,12 @@ package de.tert0.containerclaims.mixin;
 
 import de.tert0.containerclaims.ClaimAccess;
 import de.tert0.containerclaims.ClaimUtils;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.HopperBlock;
-import net.minecraft.block.entity.Hopper;
-import net.minecraft.block.entity.HopperBlockEntity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.HopperBlock;
+import net.minecraft.world.level.block.entity.Hopper;
+import net.minecraft.world.level.block.entity.HopperBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -16,12 +16,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(HopperBlockEntity.class)
 public abstract class HopperBlockEntityMixin {
     @Inject(
-            method = "extract(Lnet/minecraft/world/World;Lnet/minecraft/block/entity/Hopper;)Z",
-            at = @At(value = "FIELD", target = "Lnet/minecraft/util/math/Direction;DOWN:Lnet/minecraft/util/math/Direction;"),
+            method = "suckInItems(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/level/block/entity/Hopper;)Z",
+            at = @At(value = "FIELD", target = "Lnet/minecraft/core/Direction;DOWN:Lnet/minecraft/core/Direction;"),
             cancellable = true
     )
-    private static void extract(World world, Hopper hopper, CallbackInfoReturnable<Boolean> cir) {
-        BlockPos blockPos = BlockPos.ofFloored(hopper.getHopperX(), hopper.getHopperY() + 1.0, hopper.getHopperZ());
+    private static void suckInItems(Level world, Hopper hopper, CallbackInfoReturnable<Boolean> cir) {
+        BlockPos blockPos = BlockPos.containing(hopper.getLevelX(), hopper.getLevelY() + 1.0, hopper.getLevelZ());
         ClaimAccess claimAccess = (ClaimAccess) world.getBlockEntity(blockPos);
         if(claimAccess != null && ClaimUtils.isClaimed(claimAccess)) {
             if(hopper instanceof HopperBlockEntity hopperBlockEntity) {
@@ -39,13 +39,13 @@ public abstract class HopperBlockEntityMixin {
     }
 
     @Inject(
-            method = "insert",
+            method = "ejectItems",
             at = @At("HEAD"),
             cancellable = true
     )
-    private static void insert(World world, BlockPos pos, HopperBlockEntity blockEntity, CallbackInfoReturnable<Boolean> cir) {
+    private static void ejectItems(Level world, BlockPos pos, HopperBlockEntity blockEntity, CallbackInfoReturnable<Boolean> cir) {
         BlockState state = world.getBlockState(pos);
-        ClaimAccess claimAccess = (ClaimAccess) world.getBlockEntity(pos.offset(state.get(HopperBlock.FACING)));
+        ClaimAccess claimAccess = (ClaimAccess) world.getBlockEntity(pos.relative(state.getValue(HopperBlock.FACING)));
         if(claimAccess != null && ClaimUtils.isClaimed(claimAccess)) {
             ClaimAccess hopperClaimAccess = (ClaimAccess) blockEntity;
             if(

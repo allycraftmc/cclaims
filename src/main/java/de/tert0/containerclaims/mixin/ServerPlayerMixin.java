@@ -1,12 +1,12 @@
 package de.tert0.containerclaims.mixin;
 
 import de.tert0.containerclaims.AdminModeAccess;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 
-@Mixin(ServerPlayerEntity.class)
-public abstract class ServerPlayerEntityMixin implements AdminModeAccess {
+@Mixin(ServerPlayer.class)
+public abstract class ServerPlayerMixin implements AdminModeAccess {
     @Unique
     private boolean adminMode = false;
 

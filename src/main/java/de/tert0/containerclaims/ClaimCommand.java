@@ -11,25 +11,25 @@ import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.command.argument.DimensionArgumentType;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.command.argument.GameProfileArgumentType;
-import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.arguments.DimensionArgument;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.GameProfileArgument;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.PlayerConfigEntry;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Colors;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.Pair;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.players.NameAndId;
+import net.minecraft.util.CommonColors;
+import net.minecraft.util.Tuple;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.ZoneOffset;
@@ -37,8 +37,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static net.minecraft.server.command.CommandManager.argument;
-import static net.minecraft.server.command.CommandManager.literal;
+import static net.minecraft.commands.Commands.argument;
+import static net.minecraft.commands.Commands.literal;
 
 public class ClaimCommand {
     private static final SimpleCommandExceptionType NO_CONTAINER_FOCUSED = new SimpleCommandExceptionType(new LiteralMessage("You have to look at a container block"));
@@ -89,7 +89,7 @@ public class ClaimCommand {
                             .then(
                                     literal("trust")
                                             .then(
-                                                    argument("targets", GameProfileArgumentType.gameProfile())
+                                                    argument("targets", GameProfileArgument.gameProfile())
                                                             .executes(ClaimCommand::trustCommand)
                                             )
                                             .then(
@@ -104,7 +104,7 @@ public class ClaimCommand {
                             .then(
                                     literal("untrust")
                                             .then(
-                                                    argument("targets", GameProfileArgumentType.gameProfile())
+                                                    argument("targets", GameProfileArgument.gameProfile())
                                                             .executes(ClaimCommand::untrustCommand)
                                             )
                                             .then(
@@ -124,22 +124,22 @@ public class ClaimCommand {
                             .then(
                                     literal("list")
                                             .requires(Permissions.require("cclaim.list", 2))
-                                            .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), ctx.getSource().getPlayerOrThrow().getEntityWorld(), 1))
+                                            .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), ctx.getSource().getPlayerOrException().level(), 1))
                                             .then(
-                                                    argument("dimension", DimensionArgumentType.dimension())
-                                                            .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), DimensionArgumentType.getDimensionArgument(ctx, "dimension"), 1))
+                                                    argument("dimension", DimensionArgument.dimension())
+                                                            .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), DimensionArgument.getDimension(ctx, "dimension"), 1))
                                                             .then(
                                                                     argument("page", IntegerArgumentType.integer(1))
                                                                             .executes(
                                                                                     ctx ->
-                                                                                            ClaimCommand.listCommand(ctx.getSource(), DimensionArgumentType.getDimensionArgument(ctx, "dimension"), IntegerArgumentType.getInteger(ctx, "page"))
+                                                                                            ClaimCommand.listCommand(ctx.getSource(), DimensionArgument.getDimension(ctx, "dimension"), IntegerArgumentType.getInteger(ctx, "page"))
                                                                             )
                                                             )
                                                             .then(
                                                                     literal("all")
                                                                             .executes(
                                                                                     ctx ->
-                                                                                            ClaimCommand.listCommand(ctx.getSource(), DimensionArgumentType.getDimensionArgument(ctx, "dimension"), -1)
+                                                                                            ClaimCommand.listCommand(ctx.getSource(), DimensionArgument.getDimension(ctx, "dimension"), -1)
                                                                             )
                                                             )
                                             )
@@ -150,20 +150,20 @@ public class ClaimCommand {
                                             .then(
                                                     literal("verify")
                                                             .requires(Permissions.require("cclaim.debug.verify", 4))
-                                                            .executes(ctx -> ClaimCommand.verifyCommand(ctx, ctx.getSource().getPlayerOrThrow().getEntityWorld(), false))
+                                                            .executes(ctx -> ClaimCommand.verifyCommand(ctx, ctx.getSource().getPlayerOrException().level(), false))
                                                             .then(
-                                                                    argument("dimension", DimensionArgumentType.dimension())
-                                                                            .executes(ctx -> ClaimCommand.verifyCommand(ctx, DimensionArgumentType.getDimensionArgument(ctx, "dimension"), false))
+                                                                    argument("dimension", DimensionArgument.dimension())
+                                                                            .executes(ctx -> ClaimCommand.verifyCommand(ctx, DimensionArgument.getDimension(ctx, "dimension"), false))
                                                                             .then(
                                                                                     literal("load")
                                                                                             .executes(ctx -> {
-                                                                                                ctx.getSource().sendFeedback(() -> Text.literal("WARNING: This will load all chunks with registered claims in them. Be careful, especially in production!").withColor(Colors.YELLOW), false);
-                                                                                                ctx.getSource().sendFeedback(() -> Text.literal("To confirm that you want to do this, run /cclaim debug verify <dimension> load confirm"), false);
+                                                                                                ctx.getSource().sendSuccess(() -> Component.literal("WARNING: This will load all chunks with registered claims in them. Be careful, especially in production!").withColor(CommonColors.YELLOW), false);
+                                                                                                ctx.getSource().sendSuccess(() -> Component.literal("To confirm that you want to do this, run /cclaim debug verify <dimension> load confirm"), false);
                                                                                                 return 0;
                                                                                             })
                                                                                             .then(
                                                                                                     literal("confirm")
-                                                                                                            .executes(ctx -> ClaimCommand.verifyCommand(ctx, DimensionArgumentType.getDimensionArgument(ctx, "dimension"), true))
+                                                                                                            .executes(ctx -> ClaimCommand.verifyCommand(ctx, DimensionArgument.getDimension(ctx, "dimension"), true))
                                                                                             )
                                                                             )
                                                             )
@@ -205,7 +205,7 @@ public class ClaimCommand {
                                                                     argument("group", StringArgumentType.word())
                                                                             .suggests(GroupSuggestionProvider.owner())
                                                                             .then(
-                                                                                    argument("targets", GameProfileArgumentType.gameProfile())
+                                                                                    argument("targets", GameProfileArgument.gameProfile())
                                                                                             .executes(ClaimCommand::groupJoinCommand)
                                                                             )
                                                             )
@@ -216,7 +216,7 @@ public class ClaimCommand {
                                                                     argument("group", StringArgumentType.word())
                                                                             .suggests(GroupSuggestionProvider.owner())
                                                                             .then(
-                                                                                    argument("targets", GameProfileArgumentType.gameProfile())
+                                                                                    argument("targets", GameProfileArgument.gameProfile())
                                                                                             .executes(ClaimCommand::groupLeaveCommand)
                                                                             )
                                                             )
@@ -228,7 +228,7 @@ public class ClaimCommand {
                                                                     argument("group", StringArgumentType.word())
                                                                             .suggests(GroupSuggestionProvider.owner())
                                                                             .then(
-                                                                                    argument("player", EntityArgumentType.player())
+                                                                                    argument("player", EntityArgument.player())
                                                                                             .executes(ClaimCommand::groupTransferCommand)
                                                                             )
                                                             )
@@ -238,13 +238,13 @@ public class ClaimCommand {
         });
     }
 
-    private static ClaimAccess getFocusedClaimAccess(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
-        if(!(player.raycast(player.getAttributeValue(EntityAttributes.BLOCK_INTERACTION_RANGE), 1.0f, false) instanceof BlockHitResult result)) {
+    private static ClaimAccess getFocusedClaimAccess(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        if(!(player.pick(player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE), 1.0f, false) instanceof BlockHitResult result)) {
             throw NO_CONTAINER_FOCUSED.create();
         }
         BlockPos pos = result.getBlockPos();
-        BlockEntity blockEntity = player.getEntityWorld().getBlockEntity(pos);
+        BlockEntity blockEntity = player.level().getBlockEntity(pos);
         if(blockEntity == null) {
             throw NO_CONTAINER_FOCUSED.create();
         }
@@ -259,7 +259,7 @@ public class ClaimCommand {
         return claimAccess;
     }
 
-    private static void checkForOwnedClaim(ClaimAccess claimAccess, ServerPlayerEntity player) throws CommandSyntaxException {
+    private static void checkForOwnedClaim(ClaimAccess claimAccess, ServerPlayer player) throws CommandSyntaxException {
         if(!ClaimUtils.isClaimed(claimAccess)) {
             throw NOT_CLAIMED.create();
         }
@@ -268,88 +268,88 @@ public class ClaimCommand {
         }
     }
 
-    private static int helpCommand(CommandContext<ServerCommandSource> ctx) {
-        MutableText text = Text.literal("");
-        text.append(Text.literal("Container Claim Mod - Help\n").withColor(Colors.CYAN));
+    private static int helpCommand(CommandContext<CommandSourceStack> ctx) {
+        MutableComponent text = Component.literal("");
+        text.append(Component.literal("Container Claim Mod - Help\n").withColor(CommonColors.HIGH_CONTRAST_DIAMOND));
         text.append("-".repeat(20) + "\n");
         text.append("This can be used to claim container blocks like chests or barrels.\n");
         text.append("To claim a container block, look at the block and run ");
         text.append(
-                Text.literal("/cclaim claim\n")
-                        .withColor(Colors.YELLOW)
-                        .styled(
+                Component.literal("/cclaim claim\n")
+                        .withColor(CommonColors.YELLOW)
+                        .withStyle(
                                 style -> style.withClickEvent(new ClickEvent.SuggestCommand("/cclaim claim"))
                         )
         );
         text.append(
-                Text.literal("/cclaim unlaim")
-                        .withColor(Colors.YELLOW)
-                        .styled(
+                Component.literal("/cclaim unlaim")
+                        .withColor(CommonColors.YELLOW)
+                        .withStyle(
                                 style -> style.withClickEvent(new ClickEvent.SuggestCommand("/cclaim unclaim"))
                         )
         );
         text.append(" can be used to unclaim a container\n");
         text.append("You can allow others to use a claimed container using ");
         text.append(
-                Text.literal("/cclaim trust <player>")
-                        .withColor(Colors.YELLOW)
-                        .styled(
+                Component.literal("/cclaim trust <player>")
+                        .withColor(CommonColors.YELLOW)
+                        .withStyle(
                                 style -> style.withClickEvent(new ClickEvent.SuggestCommand("/cclaim trust "))
                         )
         );
         text.append(". To revoke these permissions, you can use ");
         text.append(
-                Text.literal("/cclaim untrust <player>")
-                        .withColor(Colors.YELLOW)
-                        .styled(
+                Component.literal("/cclaim untrust <player>")
+                        .withColor(CommonColors.YELLOW)
+                        .withStyle(
                                 style -> style.withClickEvent(new ClickEvent.SuggestCommand("/cclaim untrust "))
                         )
         );
         text.append("\n");
         text.append("To get information about a claim, you can use ");
         text.append(
-                Text.literal("/cclaim info")
-                        .withColor(Colors.YELLOW)
-                        .styled(
+                Component.literal("/cclaim info")
+                        .withColor(CommonColors.YELLOW)
+                        .withStyle(
                                 style -> style.withClickEvent(new ClickEvent.SuggestCommand("/cclaim info"))
                         )
         );
         text.append(".\n");
 
-        ctx.getSource().sendFeedback(() -> text, false);
+        ctx.getSource().sendSuccess(() -> text, false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int infoCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private static int infoCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ClaimAccess claimAccess = getFocusedClaimAccess(ctx);
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
 
-        MutableText text = Text.literal("");
-        text.append(Text.literal("Container Claim Info\n").withColor(Colors.CYAN));
+        MutableComponent text = Component.literal("");
+        text.append(Component.literal("Container Claim Info\n").withColor(CommonColors.HIGH_CONTRAST_DIAMOND));
         text.append("-".repeat(20) + "\n");
 
         if(!ClaimUtils.isClaimed(claimAccess)) {
-            text.append(Text.literal("This container is not claimed!").withColor(Colors.LIGHT_RED));
+            text.append(Component.literal("This container is not claimed!").withColor(CommonColors.SOFT_RED));
         } else if(!ClaimUtils.canUse(claimAccess, player) && !Permissions.check(player, "cclaim.info.admin", 2)) {
-            text.append(Text.literal("This container is claimed!").withColor(Colors.LIGHT_YELLOW));
+            text.append(Component.literal("This container is claimed!").withColor(CommonColors.SOFT_YELLOW));
         } else {
             text.append("Owner: ");
             text.append(
-                    Text.literal(getPlayerNameOrUuid(claimAccess.cclaims$getClaim().owner(), ctx.getSource().getServer()))
-                            .withColor(Colors.GREEN)
+                    Component.literal(getPlayerNameOrUuid(claimAccess.cclaims$getClaim().owner(), ctx.getSource().getServer()))
+                            .withColor(CommonColors.GREEN)
             );
             text.append("\n");
             text.append("Trusted: ");
 
             Collection<UUID> trustedUuids = claimAccess.cclaims$getClaim().trusted();
             if(trustedUuids.isEmpty()) {
-                text.append(Text.literal("¯\\_(ツ)_/¯").withColor(Colors.YELLOW));
+                text.append(Component.literal("¯\\_(ツ)_/¯").withColor(CommonColors.YELLOW));
             } else {
                 for(UUID trustedUuid : trustedUuids) {
-                    text.append(Text.of("\n  - "));
+                    text.append(Component.nullToEmpty("\n  - "));
                     text.append(
-                            Text.literal(getPlayerNameOrUuid(trustedUuid, ctx.getSource().getServer()))
-                                    .withColor(Colors.LIGHT_YELLOW)
+                            Component.literal(getPlayerNameOrUuid(trustedUuid, ctx.getSource().getServer()))
+                                    .withColor(CommonColors.SOFT_YELLOW)
                     );
                 }
             }
@@ -361,26 +361,26 @@ public class ClaimCommand {
             Collection<UUID> trustedGroupUUIDs = claimAccess.cclaims$getClaim().trustedGroups();
 
             if(trustedGroupUUIDs.isEmpty()) {
-                text.append(Text.literal("¯\\_(ツ)_/¯").withColor(Colors.YELLOW));
+                text.append(Component.literal("¯\\_(ツ)_/¯").withColor(CommonColors.YELLOW));
             } else {
                 for(UUID trustedGroupUuid : trustedGroupUUIDs) {
-                    text.append(Text.of("\n  - "));
+                    text.append(Component.nullToEmpty("\n  - "));
                     text.append(
                             groupState.getGroups().stream()
                                     .filter(g -> g.uuid().equals(trustedGroupUuid))
                                     .findFirst()
                                     .map(group ->
-                                            Text.literal(group.name())
-                                                    .withColor(Colors.LIGHT_YELLOW)
-                                                    .styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.of(
+                                            Component.literal(group.name())
+                                                    .withColor(CommonColors.SOFT_YELLOW)
+                                                    .withStyle(style -> style.withHoverEvent(new HoverEvent.ShowText(Component.nullToEmpty(
                                                             getPlayerNameOrUuid(group.owner(), ctx.getSource().getServer()) + " (" + group.members().size() + ")"
                                                     ))))
                                     )
                                     .orElse(
-                                            Text.literal(trustedGroupUuid.toString())
-                                                    .withColor(Colors.RED)
-                                                    .styled(style -> style
-                                                            .withHoverEvent(new HoverEvent.ShowText(Text.of("Group does not exist")))
+                                            Component.literal(trustedGroupUuid.toString())
+                                                    .withColor(CommonColors.RED)
+                                                    .withStyle(style -> style
+                                                            .withHoverEvent(new HoverEvent.ShowText(Component.nullToEmpty("Group does not exist")))
                                                     )
                                     )
                     );
@@ -397,57 +397,57 @@ public class ClaimCommand {
             }
         }
 
-        ctx.getSource().sendFeedback(() -> text, false);
+        ctx.getSource().sendSuccess(() -> text, false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int claimCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private static int claimCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ClaimAccess claimAccess = getFocusedClaimAccess(ctx);
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
 
         if(ClaimUtils.isClaimed(claimAccess)) {
             throw ALREADY_CLAIMED.create();
         }
 
-        ClaimUtils.claim(claimAccess, player.getUuid(), player.getEntityWorld());
-        ctx.getSource().sendFeedback(() -> Text.of("Claimed container"), false);
+        ClaimUtils.claim(claimAccess, player.getUUID(), player.level());
+        ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Claimed container"), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int unclaimCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private static int unclaimCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ClaimAccess claimAccess = getFocusedClaimAccess(ctx);
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
         checkForOwnedClaim(claimAccess, player);
 
-        ClaimUtils.unclaim(claimAccess, player.getEntityWorld());
-        ctx.getSource().sendFeedback(() -> Text.of("Unclaimed container"), false);
+        ClaimUtils.unclaim(claimAccess, player.level());
+        ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Unclaimed container"), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int trustCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private static int trustCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ClaimAccess claimAccess = getFocusedClaimAccess(ctx);
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
         checkForOwnedClaim(claimAccess, player);
 
-        Collection<PlayerConfigEntry> targets = GameProfileArgumentType.getProfileArgument(ctx, "targets");
+        Collection<NameAndId> targets = GameProfileArgument.getGameProfiles(ctx, "targets");
 
         List<UUID> entries = new ArrayList<>();
-        for(PlayerConfigEntry target : targets) {
+        for(NameAndId target : targets) {
             entries.add(target.id());
-            ctx.getSource().sendFeedback(() -> Text.of("Added " + target.name() + " as trusted player"), false);
+            ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Added " + target.name() + " as trusted player"), false);
         }
         ClaimUtils.trust(claimAccess, entries);
 
         if(targets.isEmpty()) {
-            ctx.getSource().sendFeedback(() -> Text.of("No targets found"), false);
+            ctx.getSource().sendSuccess(() -> Component.nullToEmpty("No targets found"), false);
         }
 
         return targets.size();
     }
 
-    private static int trustGroupCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private static int trustGroupCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ClaimAccess claimAccess = getFocusedClaimAccess(ctx);
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
         checkForOwnedClaim(claimAccess, player);
 
         String groupName = StringArgumentType.getString(ctx, "group");
@@ -456,39 +456,39 @@ public class ClaimCommand {
 
         ClaimUtils.trustGroup(claimAccess, group);
 
-        ctx.getSource().sendFeedback(() -> Text.literal("Added " + group.name() + " as a trusted group"), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("Added " + group.name() + " as a trusted group"), false);
 
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int untrustCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private static int untrustCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ClaimAccess claimAccess = getFocusedClaimAccess(ctx);
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
         checkForOwnedClaim(claimAccess, player);
 
-        Collection<PlayerConfigEntry> targets = GameProfileArgumentType.getProfileArgument(ctx, "targets");
+        Collection<NameAndId> targets = GameProfileArgument.getGameProfiles(ctx, "targets");
 
         List<UUID> entries = new ArrayList<>();
-        for(PlayerConfigEntry target : targets) {
+        for(NameAndId target : targets) {
             if(ClaimUtils.isTrusted(claimAccess, target.id())) {
                 entries.add(target.id());
-                ctx.getSource().sendFeedback(() -> Text.of("Removed " + target.name() + " as a trusted player"), false);
+                ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Removed " + target.name() + " as a trusted player"), false);
             } else {
-                ctx.getSource().sendFeedback(() -> Text.of(target.name() + " was not trusted"), false);
+                ctx.getSource().sendSuccess(() -> Component.nullToEmpty(target.name() + " was not trusted"), false);
             }
         }
         ClaimUtils.untrust(claimAccess, entries);
 
         if(entries.isEmpty()) {
-            ctx.getSource().sendFeedback(() -> Text.of("No player to untrust found"), false);
+            ctx.getSource().sendSuccess(() -> Component.nullToEmpty("No player to untrust found"), false);
         }
 
         return entries.size();
     }
 
-    private static int untrustGroupCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private static int untrustGroupCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ClaimAccess claimAccess = getFocusedClaimAccess(ctx);
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
         checkForOwnedClaim(claimAccess, player);
 
         String groupName = StringArgumentType.getString(ctx, "group");
@@ -501,42 +501,42 @@ public class ClaimCommand {
 
         ClaimUtils.untrustGroup(claimAccess, group);
 
-        ctx.getSource().sendFeedback(() -> Text.literal("Removed " + group.name() + " as a trusted group"), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("Removed " + group.name() + " as a trusted group"), false);
 
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int adminmodeCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+    private static int adminmodeCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
         AdminModeAccess adminModeAccess = (AdminModeAccess) player;
 
         adminModeAccess.cclaims$setAdminMode(!adminModeAccess.cclaims$getAdminMode());
 
         if(adminModeAccess.cclaims$getAdminMode()) {
-            ctx.getSource().sendFeedback(() -> Text.of("Enabled Container Claim Admin Mode"), true);
+            ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Enabled Container Claim Admin Mode"), true);
         } else {
-            ctx.getSource().sendFeedback(() -> Text.of("Disabled Container Claim Admin Mode"), true);
+            ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Disabled Container Claim Admin Mode"), true);
         }
 
         return Command.SINGLE_SUCCESS;
     }
 
-    private static MutableText getTextOfBlockPos(BlockPos pos, boolean copyable) {
+    private static MutableComponent getTextOfBlockPos(BlockPos pos, boolean copyable) {
         String formattedPos = pos.getX() + " " + pos.getY() + " " + pos.getZ();
-        MutableText text = Text.literal(formattedPos)
-                .styled(
+        MutableComponent text = Component.literal(formattedPos)
+                .withStyle(
                         style -> style
-                                .withHoverEvent(new HoverEvent.ShowText(Text.of("Click to teleport")))
+                                .withHoverEvent(new HoverEvent.ShowText(Component.nullToEmpty("Click to teleport")))
                                 .withClickEvent(new ClickEvent.RunCommand("/tp " + formattedPos))
                 );
 
         if(copyable) {
             text.append(
-                    Text.literal(" (Copy)")
-                            .withColor(Colors.LIGHT_GRAY)
-                            .styled(
+                    Component.literal(" (Copy)")
+                            .withColor(CommonColors.LIGHT_GRAY)
+                            .withStyle(
                                     style -> style
-                                            .withHoverEvent(new HoverEvent.ShowText(Text.of("Click to copy")))
+                                            .withHoverEvent(new HoverEvent.ShowText(Component.nullToEmpty("Click to copy")))
                                             .withClickEvent(new ClickEvent.CopyToClipboard(formattedPos))
                             )
             );
@@ -547,34 +547,34 @@ public class ClaimCommand {
 
     @NotNull
     private static String getPlayerNameOrUuid(UUID uuid, MinecraftServer server) {
-        return Optional.ofNullable(server.getApiServices().nameToIdCache())
-                .flatMap(userCache -> userCache.getByUuid(uuid))
-                .map(PlayerConfigEntry::name)
+        return Optional.ofNullable(server.services().nameToIdCache())
+                .flatMap(userCache -> userCache.get(uuid))
+                .map(NameAndId::name)
                 .orElse(uuid.toString());
     }
 
-    private static int listCommand(ServerCommandSource source, ServerWorld serverWorld, int page) throws CommandSyntaxException {
+    private static int listCommand(CommandSourceStack source, ServerLevel serverWorld, int page) throws CommandSyntaxException {
         List<BlockPos> positions = GlobalClaimState.getWorldState(serverWorld).getPositions()
                 .stream()
                 .sorted() // TODO maybe some kind of 3d spiral around the origin
                 .toList();
-        Identifier dimension = serverWorld.getDimensionEntry().getKey()
+        Identifier dimension = serverWorld.dimensionTypeRegistration().unwrapKey()
                 .orElseThrow(MISSING_DIMENSION_REGISTRY_KEY::create)
-                .getValue();
+                .identifier();
         String dimensionName = dimension.getPath();
 
         int totalPageCount = Math.ceilDiv(positions.size(), LIST_PAGE_SIZE);
 
-        MutableText text = Text.literal("");
+        MutableComponent text = Component.literal("");
         text.append(
-                Text.literal("--- Container Claims - " + dimensionName+ " (" + positions.size() + ") ---")
-                        .withColor(Colors.CYAN)
+                Component.literal("--- Container Claims - " + dimensionName+ " (" + positions.size() + ") ---")
+                        .withColor(CommonColors.HIGH_CONTRAST_DIAMOND)
         );
 
         if(positions.isEmpty()) {
             text.append(
-                    Text.literal("\nNo registered claims")
-                            .withColor(Colors.LIGHT_RED)
+                    Component.literal("\nNo registered claims")
+                            .withColor(CommonColors.SOFT_RED)
             );
         } else {
             if(page > totalPageCount) {
@@ -585,8 +585,8 @@ public class ClaimCommand {
             }
 
             for(BlockPos pos : positions) {
-                Optional<Text> extraText = Optional.empty();
-                if(serverWorld.isPosLoaded(pos)) {
+                Optional<Component> extraText = Optional.empty();
+                if(serverWorld.isLoaded(pos)) {
                     ClaimAccess claimAccess = (ClaimAccess) serverWorld.getBlockEntity(pos);
                     if(claimAccess != null) {
                         List<String> trustedNames = claimAccess.cclaims$getClaim().trusted().stream()
@@ -595,63 +595,63 @@ public class ClaimCommand {
 
                         String ownerName = getPlayerNameOrUuid(claimAccess.cclaims$getClaim().owner(), source.getServer());
                         extraText = Optional.of(
-                                Text.literal(" - " + ownerName)
-                                        .withColor(Colors.YELLOW)
-                                        .styled(style -> trustedNames.isEmpty() ? style :style.withHoverEvent(
-                                                new HoverEvent.ShowText(Text.of(String.join("\n", trustedNames)))
+                                Component.literal(" - " + ownerName)
+                                        .withColor(CommonColors.YELLOW)
+                                        .withStyle(style -> trustedNames.isEmpty() ? style :style.withHoverEvent(
+                                                new HoverEvent.ShowText(Component.nullToEmpty(String.join("\n", trustedNames)))
                                         ))
                         );
                     }
                 }
 
-                text.append(Text.of("\n  - "));
-                text.append(getTextOfBlockPos(pos, true).copy().withColor(Colors.GREEN));
+                text.append(Component.nullToEmpty("\n  - "));
+                text.append(getTextOfBlockPos(pos, true).copy().withColor(CommonColors.GREEN));
                 extraText.ifPresent(text::append);
             }
 
             if(page != -1) {
-                Text btnPrev = (page > 1) ? Text.literal("<<")
-                        .styled(style -> style
+                Component btnPrev = (page > 1) ? Component.literal("<<")
+                        .withStyle(style -> style
                                 .withClickEvent(new ClickEvent.RunCommand("/cclaim list " + dimension + " " + (page - 1)))
-                                .withHoverEvent(new HoverEvent.ShowText(Text.of("Previous Page")))
-                        ) : Text.literal("<<");
-                Text btnNext = (page + 1 <= totalPageCount) ? Text.literal(">>")
-                        .styled(style -> style
+                                .withHoverEvent(new HoverEvent.ShowText(Component.nullToEmpty("Previous Page")))
+                        ) : Component.literal("<<");
+                Component btnNext = (page + 1 <= totalPageCount) ? Component.literal(">>")
+                        .withStyle(style -> style
                                 .withClickEvent(new ClickEvent.RunCommand("/cclaim list " + dimension + " " + (page + 1)))
-                                .withHoverEvent(new HoverEvent.ShowText(Text.of("Next Page")))
-                        ) : Text.literal(">>");
+                                .withHoverEvent(new HoverEvent.ShowText(Component.nullToEmpty("Next Page")))
+                        ) : Component.literal(">>");
                 text.append(
-                        Text.literal("\n----- ")
-                                .withColor(Colors.CYAN)
+                        Component.literal("\n----- ")
+                                .withColor(CommonColors.HIGH_CONTRAST_DIAMOND)
                                 .append(btnPrev)
-                                .append(Text.of(" Page " + page + " of " + totalPageCount + " "))
+                                .append(Component.nullToEmpty(" Page " + page + " of " + totalPageCount + " "))
                                 .append(btnNext)
                                 .append(" -----")
                 );
             } else {
-                text.append(Text.literal("\n" + "-".repeat(30)).withColor(Colors.CYAN));
+                text.append(Component.literal("\n" + "-".repeat(30)).withColor(CommonColors.HIGH_CONTRAST_DIAMOND));
             }
         }
 
-        source.sendFeedback(() -> text, false);
+        source.sendSuccess(() -> text, false);
 
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int verifyCommand(CommandContext<ServerCommandSource> ctx, ServerWorld serverWorld, boolean loadChunks) {
+    private static int verifyCommand(CommandContext<CommandSourceStack> ctx, ServerLevel serverWorld, boolean loadChunks) {
         Set<BlockPos> allPositions = GlobalClaimState.getWorldState(serverWorld).getPositions();
 
         Set<BlockPos> loadedPositions = allPositions.stream()
-                .filter(pos -> serverWorld.isPosLoaded(pos) || loadChunks)
+                .filter(pos -> serverWorld.isLoaded(pos) || loadChunks)
                 .collect(Collectors.toSet());
 
-        List<Pair<BlockPos, Text>> problems = new ArrayList<>();
+        List<Tuple<BlockPos, Component>> problems = new ArrayList<>();
         for(BlockPos pos : loadedPositions) {
             ClaimAccess claimAccess = (ClaimAccess) serverWorld.getBlockEntity(pos);
 
             // Check Claim exists
             if(claimAccess == null || !ClaimUtils.isClaimed(claimAccess)) {
-                problems.add(new Pair<>(pos, Text.literal("Claim not found").withColor(Colors.RED)));
+                problems.add(new Tuple<>(pos, Component.literal("Claim not found").withColor(CommonColors.RED)));
                 continue;
             }
 
@@ -659,7 +659,7 @@ public class ClaimCommand {
             ClaimAccess otherClaimAccess = (ClaimAccess) DoubleChestUtils.getNeighborBlockEntity(pos, serverWorld);
             if(otherClaimAccess != null) {
                 if(!ClaimUtils.isClaimed(otherClaimAccess)) {
-                    problems.add(new Pair<>(pos, Text.literal("Double Chest not fully claimed").withColor(Colors.YELLOW)));
+                    problems.add(new Tuple<>(pos, Component.literal("Double Chest not fully claimed").withColor(CommonColors.YELLOW)));
                     continue;
                 }
 
@@ -667,26 +667,26 @@ public class ClaimCommand {
                 ClaimComponent otherClaim = otherClaimAccess.cclaims$getClaim();
 
                 if(!claim.owner().equals(otherClaim.owner())) {
-                    problems.add(new Pair<>(pos, Text.literal("Double Chest owners do not match").withColor(Colors.YELLOW)));
+                    problems.add(new Tuple<>(pos, Component.literal("Double Chest owners do not match").withColor(CommonColors.YELLOW)));
                     continue;
                 }
 
                 if(!claim.trusted().equals(otherClaim.trusted())) {
-                    problems.add(new Pair<>(pos, Text.literal("Double Chest trusted players do not match").withColor(Colors.YELLOW)));
+                    problems.add(new Tuple<>(pos, Component.literal("Double Chest trusted players do not match").withColor(CommonColors.YELLOW)));
                     continue;
                 }
             }
         }
 
-        ctx.getSource().sendFeedback(() -> Text.of("Checked " + loadedPositions.size() + "/" + allPositions.size() + " positions"), false);
+        ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Checked " + loadedPositions.size() + "/" + allPositions.size() + " positions"), false);
 
         if(problems.isEmpty()) {
-            ctx.getSource().sendFeedback(() -> Text.literal("No problems found").withColor(Colors.GREEN), false);
+            ctx.getSource().sendSuccess(() -> Component.literal("No problems found").withColor(CommonColors.GREEN), false);
         } else {
-            ctx.getSource().sendFeedback(() -> Text.literal(problems.size() + " problems found").withColor(Colors.RED), false);
-            for(Pair<BlockPos, Text> entry : problems) {
-                ctx.getSource().sendFeedback(
-                        () -> Text.literal("- ").append(getTextOfBlockPos(entry.getLeft(), false).withColor(Colors.GREEN)).append(": ").append(entry.getRight()),
+            ctx.getSource().sendSuccess(() -> Component.literal(problems.size() + " problems found").withColor(CommonColors.RED), false);
+            for(Tuple<BlockPos, Component> entry : problems) {
+                ctx.getSource().sendSuccess(
+                        () -> Component.literal("- ").append(getTextOfBlockPos(entry.getA(), false).withColor(CommonColors.GREEN)).append(": ").append(entry.getB()),
                         false
                 );
             }
@@ -696,8 +696,8 @@ public class ClaimCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int groupCreateCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+    private static int groupCreateCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
         String groupName = StringArgumentType.getString(ctx, "group");
 
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
@@ -707,7 +707,7 @@ public class ClaimCommand {
         }
 
         long currentCount = groupState.getGroups().stream()
-                .filter(g -> g.owner().equals(player.getUuid()))
+                .filter(g -> g.owner().equals(player.getUUID()))
                 .count();
 
         if(currentCount >= 2 && !Permissions.check(player, "cclaim.group.admin", 3)) { // TODO make configurable
@@ -728,13 +728,13 @@ public class ClaimCommand {
         GroupComponent group = new GroupComponent(
                 UUID.randomUUID(),
                 groupName,
-                player.getUuid(),
+                player.getUUID(),
                 ImmutableSet.of()
         );
 
         groupState.addGroup(group);
 
-        ctx.getSource().sendFeedback(() -> Text.literal("Successfully created group!").withColor(Colors.GREEN), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("Successfully created group!").withColor(CommonColors.GREEN), false);
 
         return Command.SINGLE_SUCCESS;
     }
@@ -747,26 +747,26 @@ public class ClaimCommand {
                 .orElseThrow(GROUP_DOES_NOT_EXIST::create);
     }
 
-    private static int groupDeleteCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+    private static int groupDeleteCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
 
         String groupName = StringArgumentType.getString(ctx, "group");
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
         GroupComponent group = getGroup(groupState, groupName);
 
-        if(!group.owner().equals(player.getUuid()) && !Permissions.check(player, "cclaim.group.admin", 3)) {
+        if(!group.owner().equals(player.getUUID()) && !Permissions.check(player, "cclaim.group.admin", 3)) {
             throw PERMISSION_DENIED.create();
         }
 
         groupState.removeGroup(group);
 
-        ctx.getSource().sendFeedback(() -> Text.literal("Successfully removed group").withColor(Colors.GREEN), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("Successfully removed group").withColor(CommonColors.GREEN), false);
 
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int groupInfoCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+    private static int groupInfoCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
 
         String groupName = StringArgumentType.getString(ctx, "group");
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
@@ -776,23 +776,23 @@ public class ClaimCommand {
             throw PERMISSION_DENIED.create();
         }
 
-        MutableText text = Text.literal("");
+        MutableComponent text = Component.literal("");
 
-        text.append(Text.literal("Container Claim Group Info\n").withColor(Colors.CYAN));
+        text.append(Component.literal("Container Claim Group Info\n").withColor(CommonColors.HIGH_CONTRAST_DIAMOND));
         text.append("-".repeat(20) + "\n");
 
         text.append("Name: ");
         text.append(
-                Text.literal(group.name() + "\n")
-                        .withColor(Colors.BLUE)
-                        .styled(style -> style.withHoverEvent(
-                                new HoverEvent.ShowText(Text.of(group.uuid().toString()))
+                Component.literal(group.name() + "\n")
+                        .withColor(CommonColors.BLUE)
+                        .withStyle(style -> style.withHoverEvent(
+                                new HoverEvent.ShowText(Component.nullToEmpty(group.uuid().toString()))
                         ))
         );
         text.append("Owner: ");
         text.append(
-                Text.literal(getPlayerNameOrUuid(group.owner(), ctx.getSource().getServer()) + "\n")
-                        .withColor(Colors.GREEN)
+                Component.literal(getPlayerNameOrUuid(group.owner(), ctx.getSource().getServer()) + "\n")
+                        .withColor(CommonColors.GREEN)
         );
 
         text.append("Members: ");
@@ -800,23 +800,23 @@ public class ClaimCommand {
         for(UUID uuid : group.members()) {
             text.append("\n  - ");
             text.append(
-                    Text.literal(getPlayerNameOrUuid(uuid, ctx.getSource().getServer()))
-                            .withColor(Colors.LIGHT_YELLOW)
+                    Component.literal(getPlayerNameOrUuid(uuid, ctx.getSource().getServer()))
+                            .withColor(CommonColors.SOFT_YELLOW)
             );
         }
 
         if(group.members().isEmpty()) {
-            text.append(Text.literal("¯\\_(ツ)_/¯").withColor(Colors.YELLOW));
+            text.append(Component.literal("¯\\_(ツ)_/¯").withColor(CommonColors.YELLOW));
         }
 
-        ctx.getSource().sendFeedback(() -> text, false);
+        ctx.getSource().sendSuccess(() -> text, false);
 
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int groupListCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private static int groupListCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         // TODO pagination
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
 
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
 
@@ -824,98 +824,98 @@ public class ClaimCommand {
                 .filter(group -> group.isMember(player) || Permissions.check(player, "cclaim.group.admin", 3))
                 .toList();
 
-        MutableText text = Text.literal("");
+        MutableComponent text = Component.literal("");
         text.append(
-                Text.literal("--- Container Claim Groups (" + groups.size() + ") ---")
-                        .withColor(Colors.CYAN)
+                Component.literal("--- Container Claim Groups (" + groups.size() + ") ---")
+                        .withColor(CommonColors.HIGH_CONTRAST_DIAMOND)
         );
         for(GroupComponent group : groups) {
             String ownerName = getPlayerNameOrUuid(group.owner(), ctx.getSource().getServer());
 
-            text.append(Text.of("\n  - "));
+            text.append(Component.nullToEmpty("\n  - "));
             text.append(
-                    Text.literal(group.name())
-                            .withColor(Colors.GREEN)
-                            .styled(style -> style
-                                    .withHoverEvent(new HoverEvent.ShowText(Text.of(ownerName + " (" + group.members().size() + ")")))
+                    Component.literal(group.name())
+                            .withColor(CommonColors.GREEN)
+                            .withStyle(style -> style
+                                    .withHoverEvent(new HoverEvent.ShowText(Component.nullToEmpty(ownerName + " (" + group.members().size() + ")")))
                             )
             );
         }
 
         if(groups.isEmpty()) {
-            text.append(Text.literal("\nThere are no groups (that you can see)").withColor(Colors.LIGHT_RED));
+            text.append(Component.literal("\nThere are no groups (that you can see)").withColor(CommonColors.SOFT_RED));
         }
 
-        ctx.getSource().sendFeedback(() -> text, false);
+        ctx.getSource().sendSuccess(() -> text, false);
 
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int groupJoinCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+    private static int groupJoinCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
 
         String groupName = StringArgumentType.getString(ctx, "group");
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
         GroupComponent group = getGroup(groupState, groupName);
 
-        if(!group.owner().equals(player.getUuid()) && !Permissions.check(player, "cclaim.group.admin", 3)) {
+        if(!group.owner().equals(player.getUUID()) && !Permissions.check(player, "cclaim.group.admin", 3)) {
             throw PERMISSION_DENIED.create();
         }
 
-        Collection<PlayerConfigEntry> gameProfiles = GameProfileArgumentType.getProfileArgument(ctx, "targets");
+        Collection<NameAndId> gameProfiles = GameProfileArgument.getGameProfiles(ctx, "targets");
 
-        groupState.modifyGroup(group.addMembers(gameProfiles.stream().map(PlayerConfigEntry::id).toList()));
+        groupState.modifyGroup(group.addMembers(gameProfiles.stream().map(NameAndId::id).toList()));
 
-        for(PlayerConfigEntry gameProfile : gameProfiles) {
-            ctx.getSource().sendFeedback(() -> Text.of("Added " + gameProfile.name() + " to the group"), false);
+        for(NameAndId gameProfile : gameProfiles) {
+            ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Added " + gameProfile.name() + " to the group"), false);
         }
 
         return gameProfiles.size();
     }
 
-    private static int groupLeaveCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+    private static int groupLeaveCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
 
         String groupName = StringArgumentType.getString(ctx, "group");
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
         GroupComponent group = getGroup(groupState, groupName);
 
-        if(!group.owner().equals(player.getUuid()) && !Permissions.check(player, "cclaim.group.admin", 3)) {
+        if(!group.owner().equals(player.getUUID()) && !Permissions.check(player, "cclaim.group.admin", 3)) {
             throw PERMISSION_DENIED.create();
         }
 
-        Collection<PlayerConfigEntry> gameProfiles = GameProfileArgumentType.getProfileArgument(ctx, "targets");
+        Collection<NameAndId> gameProfiles = GameProfileArgument.getGameProfiles(ctx, "targets");
 
-        groupState.modifyGroup(group.removeMembers(gameProfiles.stream().map(PlayerConfigEntry::id).toList()));
+        groupState.modifyGroup(group.removeMembers(gameProfiles.stream().map(NameAndId::id).toList()));
 
         int count = 0;
-        for(PlayerConfigEntry gameProfile : gameProfiles) {
+        for(NameAndId gameProfile : gameProfiles) {
             if(group.members().contains(gameProfile.id())) {
-                ctx.getSource().sendFeedback(() -> Text.of("Removed " + gameProfile.name() + " from the group"), false);
+                ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Removed " + gameProfile.name() + " from the group"), false);
                 count++;
             } else {
-                ctx.getSource().sendFeedback(() -> Text.of(gameProfile.name() + " was not a member of the group"), false);
+                ctx.getSource().sendSuccess(() -> Component.nullToEmpty(gameProfile.name() + " was not a member of the group"), false);
             }
         }
 
         return count;
     }
 
-    private static int groupTransferCommand(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private static int groupTransferCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         String groupName = StringArgumentType.getString(ctx, "group");
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
         GroupComponent group = getGroup(groupState, groupName);
 
-        ServerPlayerEntity target = EntityArgumentType.getPlayer(ctx, "player");
+        ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
 
-        if(group.owner().equals(target.getUuid())) {
+        if(group.owner().equals(target.getUUID())) {
             throw ALREADY_GROUP_OWNER.create();
         }
 
-        groupState.modifyGroup(group.withOwner(target.getUuid()));
+        groupState.modifyGroup(group.withOwner(target.getUUID()));
 
-        ctx.getSource().sendFeedback(
-                () -> Text.literal("Successfully transferred group " + group.name() + " to ")
+        ctx.getSource().sendSuccess(
+                () -> Component.literal("Successfully transferred group " + group.name() + " to ")
                         .append(target.getName()),
                 true
         );

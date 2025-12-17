@@ -2,18 +2,17 @@ package de.tert0.containerclaims;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
-import net.minecraft.block.entity.BlockEntityType;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Colors;
-import net.minecraft.util.Identifier;
-
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.CommonColors;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import java.util.Set;
 
 public class ContainerClaimMod implements ModInitializer {
 
     public static final String MOD_ID = "cclaims";
-    public static final Identifier CLAIM_DATA_ID = Identifier.of(MOD_ID, "claim");
+    public static final Identifier CLAIM_DATA_ID = Identifier.fromNamespaceAndPath(MOD_ID, "claim");
     // TODO Furnaces, Shulker boxes, Crafter, Dispenser/Dropper, Trapped Chest, ...
     public static final Set<BlockEntityType<?>> SUPPORTED_BLOCK_ENTITIES = Set.of(BlockEntityType.CHEST, BlockEntityType.BARREL, BlockEntityType.HOPPER, BlockEntityType.BREWING_STAND, BlockEntityType.BEACON, BlockEntityType.SHELF);
 
@@ -26,7 +25,7 @@ public class ContainerClaimMod implements ModInitializer {
             if(blockEntity == null || !ClaimUtils.isClaimed(claimAccess)) return true;
 
             if(!ClaimUtils.isOwnerOrAdmin(claimAccess, player)) {
-                player.sendMessage(Text.literal("This block is claimed!").withColor(Colors.RED), true);
+                player.displayClientMessage(Component.literal("This block is claimed!").withColor(CommonColors.RED), true);
                 return false;
             }
 
@@ -39,7 +38,7 @@ public class ContainerClaimMod implements ModInitializer {
 
             if(!ClaimUtils.isOwnerOrAdmin(claimAccess, player)) return;
 
-            ClaimUtils.markUnclaimed(claimAccess, (ServerWorld) world);
+            ClaimUtils.markUnclaimed(claimAccess, (ServerLevel) world);
         });
     }
 }
