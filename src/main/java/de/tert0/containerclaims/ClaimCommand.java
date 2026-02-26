@@ -24,6 +24,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.permissions.PermissionLevel;
 import net.minecraft.server.players.NameAndId;
 import net.minecraft.util.CommonColors;
 import net.minecraft.util.Tuple;
@@ -118,12 +119,12 @@ public class ClaimCommand {
                             )
                             .then(
                                     literal("adminmode")
-                                            .requires(Permissions.require("cclaim.adminmode", 3))
+                                            .requires(Permissions.require("cclaim.adminmode", PermissionLevel.ADMINS))
                                             .executes(ClaimCommand::adminmodeCommand)
                             )
                             .then(
                                     literal("list")
-                                            .requires(Permissions.require("cclaim.list", 2))
+                                            .requires(Permissions.require("cclaim.list", PermissionLevel.GAMEMASTERS))
                                             .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), ctx.getSource().getPlayerOrException().level(), 1))
                                             .then(
                                                     argument("dimension", DimensionArgument.dimension())
@@ -146,10 +147,10 @@ public class ClaimCommand {
                             )
                             .then(
                                     literal("debug")
-                                            .requires(Permissions.require("cclaim.debug", 4))
+                                            .requires(Permissions.require("cclaim.debug", PermissionLevel.OWNERS))
                                             .then(
                                                     literal("verify")
-                                                            .requires(Permissions.require("cclaim.debug.verify", 4))
+                                                            .requires(Permissions.require("cclaim.debug.verify", PermissionLevel.OWNERS))
                                                             .executes(ctx -> ClaimCommand.verifyCommand(ctx, ctx.getSource().getPlayerOrException().level(), false))
                                                             .then(
                                                                     argument("dimension", DimensionArgument.dimension())
@@ -223,7 +224,7 @@ public class ClaimCommand {
                                             )
                                             .then(
                                                     literal("transfer")
-                                                            .requires(Permissions.require("cclaim.group.transfer", 3))
+                                                            .requires(Permissions.require("cclaim.group.transfer", PermissionLevel.ADMINS))
                                                             .then(
                                                                     argument("group", StringArgumentType.word())
                                                                             .suggests(GroupSuggestionProvider.owner())
@@ -330,7 +331,7 @@ public class ClaimCommand {
 
         if(!ClaimUtils.isClaimed(claimAccess)) {
             text.append(Component.literal("This container is not claimed!").withColor(CommonColors.SOFT_RED));
-        } else if(!ClaimUtils.canUse(claimAccess, player) && !Permissions.check(player, "cclaim.info.admin", 2)) {
+        } else if(!ClaimUtils.canUse(claimAccess, player) && !Permissions.check(player, "cclaim.info.admin", PermissionLevel.GAMEMASTERS)) {
             text.append(Component.literal("This container is claimed!").withColor(CommonColors.SOFT_YELLOW));
         } else {
             text.append("Owner: ");
@@ -387,7 +388,7 @@ public class ClaimCommand {
                 }
             }
 
-            if(Permissions.check(player, "cclaim.info.admin", 2)) {
+            if(Permissions.check(player, "cclaim.info.admin", PermissionLevel.GAMEMASTERS)) {
                 String formattedTimestamp = DateTimeFormatter.ISO_DATE_TIME
                         .withZone(ZoneOffset.UTC)
                         .format(claimAccess.cclaims$getClaim().timestamp());
@@ -547,8 +548,8 @@ public class ClaimCommand {
 
     @NotNull
     private static String getPlayerNameOrUuid(UUID uuid, MinecraftServer server) {
-        return Optional.ofNullable(server.services().nameToIdCache())
-                .flatMap(userCache -> userCache.get(uuid))
+        return server.services().nameToIdCache()
+                .get(uuid)
                 .map(NameAndId::name)
                 .orElse(uuid.toString());
     }
@@ -710,7 +711,7 @@ public class ClaimCommand {
                 .filter(g -> g.owner().equals(player.getUUID()))
                 .count();
 
-        if(currentCount >= 2 && !Permissions.check(player, "cclaim.group.admin", 3)) { // TODO make configurable
+        if(currentCount >= 2 && !Permissions.check(player, "cclaim.group.admin", PermissionLevel.ADMINS)) { // TODO make configurable
             throw GROUP_LIMIT_REACHED.create(2);
         }
 
@@ -754,7 +755,7 @@ public class ClaimCommand {
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
         GroupComponent group = getGroup(groupState, groupName);
 
-        if(!group.owner().equals(player.getUUID()) && !Permissions.check(player, "cclaim.group.admin", 3)) {
+        if(!group.owner().equals(player.getUUID()) && !Permissions.check(player, "cclaim.group.admin", PermissionLevel.ADMINS)) {
             throw PERMISSION_DENIED.create();
         }
 
@@ -772,7 +773,7 @@ public class ClaimCommand {
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
         GroupComponent group = getGroup(groupState, groupName);
 
-        if(!group.isMember(player) && !Permissions.check(player, "cclaim.group.admin", 3)) {
+        if(!group.isMember(player) && !Permissions.check(player, "cclaim.group.admin", PermissionLevel.ADMINS)) {
             throw PERMISSION_DENIED.create();
         }
 
@@ -821,7 +822,7 @@ public class ClaimCommand {
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
 
         Collection<GroupComponent> groups = groupState.getGroups().stream()
-                .filter(group -> group.isMember(player) || Permissions.check(player, "cclaim.group.admin", 3))
+                .filter(group -> group.isMember(player) || Permissions.check(player, "cclaim.group.admin", PermissionLevel.ADMINS))
                 .toList();
 
         MutableComponent text = Component.literal("");
@@ -858,7 +859,7 @@ public class ClaimCommand {
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
         GroupComponent group = getGroup(groupState, groupName);
 
-        if(!group.owner().equals(player.getUUID()) && !Permissions.check(player, "cclaim.group.admin", 3)) {
+        if(!group.owner().equals(player.getUUID()) && !Permissions.check(player, "cclaim.group.admin", PermissionLevel.ADMINS)) {
             throw PERMISSION_DENIED.create();
         }
 
@@ -880,7 +881,7 @@ public class ClaimCommand {
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
         GroupComponent group = getGroup(groupState, groupName);
 
-        if(!group.owner().equals(player.getUUID()) && !Permissions.check(player, "cclaim.group.admin", 3)) {
+        if(!group.owner().equals(player.getUUID()) && !Permissions.check(player, "cclaim.group.admin", PermissionLevel.ADMINS)) {
             throw PERMISSION_DENIED.create();
         }
 
