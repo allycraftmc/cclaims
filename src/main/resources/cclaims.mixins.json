@@ -7,13 +7,14 @@
     "BlockBehaviourMixin",
     "BlockEntityMixin",
     "BlockItemMixin",
-    "TransportItemsBetweenContainersMixin",
+    "DimensionStorageFileFixMixin",
     "DropperBlockMixin",
     "EnderDragonMixin",
     "HopperBlockEntityMixin",
     "PistonBaseBlockMixin",
     "ServerPlayerMixin",
     "ShelfBlockMixin",
+    "TransportItemsBetweenContainersMixin",
     "WorldMixin"
   ],
   "injectors": {
