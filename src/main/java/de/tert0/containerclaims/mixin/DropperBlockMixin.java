@@ -23,7 +23,7 @@ public class DropperBlockMixin {
             ),
             cancellable = true
     )
-    void beforeItemTransfer(ServerLevel world, BlockState state, BlockPos pos, CallbackInfo ci, @Local Direction direction) {
+    void beforeItemTransfer(ServerLevel world, BlockState state, BlockPos pos, CallbackInfo ci, @Local(name = "direction") Direction direction) {
         ClaimAccess claimAccess = (ClaimAccess) world.getBlockEntity(pos.relative(direction));
         if(claimAccess != null && ClaimUtils.isClaimed(claimAccess)) {
             ci.cancel();

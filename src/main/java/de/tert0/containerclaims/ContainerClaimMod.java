@@ -25,7 +25,7 @@ public class ContainerClaimMod implements ModInitializer {
             if(blockEntity == null || !ClaimUtils.isClaimed(claimAccess)) return true;
 
             if(!ClaimUtils.isOwnerOrAdmin(claimAccess, player)) {
-                player.displayClientMessage(Component.literal("This block is claimed!").withColor(CommonColors.RED), true);
+                player.sendOverlayMessage(Component.literal("This block is claimed!").withColor(CommonColors.RED));
                 return false;
             }
 

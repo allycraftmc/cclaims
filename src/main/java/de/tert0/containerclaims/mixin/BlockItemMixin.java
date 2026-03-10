@@ -31,7 +31,7 @@ public abstract class BlockItemMixin {
         ClaimAccess claimAccess = (ClaimAccess) DoubleChestUtils.getNeighborBlockEntity(context.getClickedPos(), context.getLevel(), state);
         if(claimAccess != null && ClaimUtils.isClaimed(claimAccess)) {
             if(!ClaimUtils.isOwnerOrAdmin(claimAccess, player)) {
-                player.displayClientMessage(Component.literal("The other chest is claimed!").withColor(CommonColors.RED), true);
+                player.sendSystemMessage(Component.literal("The other chest is claimed!").withColor(CommonColors.RED), true);
                 int slot = switch (context.getHand()) {
                     case MAIN_HAND -> player.getInventory().getSelectedSlot();
                     case OFF_HAND -> Inventory.SLOT_OFFHAND;
@@ -53,7 +53,7 @@ public abstract class BlockItemMixin {
                 newClaimAccess.cclaims$setClaim(claimAccess.cclaims$getClaim());
                 ClaimUtils.markClaimed(newClaimAccess, (ServerLevel) world);
             } else {
-                player.displayClientMessage(Component.literal("Unable to apply claim to double chest. Please report this issue!").withColor(CommonColors.RED), false);
+                player.sendSystemMessage(Component.literal("Unable to apply claim to double chest. Please report this issue!").withColor(CommonColors.RED));
             }
         }
     }

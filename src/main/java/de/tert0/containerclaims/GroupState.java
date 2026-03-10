@@ -3,9 +3,8 @@ package de.tert0.containerclaims;
 import com.google.common.collect.ImmutableList;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 import org.jetbrains.annotations.NotNull;
@@ -22,7 +21,7 @@ public class GroupState extends SavedData {
     ).apply(instance, GroupState::new));
 
     private static final SavedDataType<@NotNull GroupState> STATE_TYPE = new SavedDataType<>(
-            ContainerClaimMod.MOD_ID + "_groups",
+            Identifier.fromNamespaceAndPath(ContainerClaimMod.MOD_ID, "groups"),
             GroupState::createDefault,
             GroupState.CODEC,
             null
@@ -39,11 +38,7 @@ public class GroupState extends SavedData {
     }
 
     public static GroupState getState(MinecraftServer server) {
-        ServerLevel serverWorld = server.getLevel(Level.OVERWORLD);
-        if(serverWorld == null) {
-           throw new IllegalStateException("Overworld has to be available for this mod to work");
-        }
-        return serverWorld.getDataStorage().computeIfAbsent(STATE_TYPE);
+        return server.getDataStorage().computeIfAbsent(STATE_TYPE);
     }
 
     public ImmutableList<@NotNull GroupComponent> getGroups() {

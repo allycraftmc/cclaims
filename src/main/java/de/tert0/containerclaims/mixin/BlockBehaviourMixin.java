@@ -32,7 +32,7 @@ public class BlockBehaviourMixin {
         if(claimAccess == null || !ClaimUtils.isClaimed(claimAccess)) return;
 
         if(!ClaimUtils.canUse(claimAccess, (ServerPlayer) player)) {
-            player.displayClientMessage(Component.literal("This block is claimed!").withColor(CommonColors.RED), true);
+            player.sendOverlayMessage(Component.literal("This block is claimed!").withColor(CommonColors.RED));
             cir.setReturnValue(InteractionResult.SUCCESS); // this will prevent the default action
         }
     }

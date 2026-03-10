@@ -23,7 +23,7 @@ public abstract class EnderDragonMixin extends Mob {
             method = "checkWalls",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/state/BlockState;is(Lnet/minecraft/tags/TagKey;)Z", ordinal = 1)
     )
-    boolean isDragonImmune(boolean original, @Local BlockPos blockPos) {
+    boolean isDragonImmune(boolean original, @Local(name = "blockPos") BlockPos blockPos) {
         ClaimAccess claimAccess = (ClaimAccess) this.level().getBlockEntity(blockPos);
         if(claimAccess != null && ClaimUtils.isClaimed(claimAccess)) {
            return true;

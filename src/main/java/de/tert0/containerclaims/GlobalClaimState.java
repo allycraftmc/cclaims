@@ -5,10 +5,11 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.*;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
-import net.minecraft.world.level.storage.DimensionDataStorage;
+import net.minecraft.world.level.storage.SavedDataStorage;
 import org.jetbrains.annotations.NotNull;
 
 public class GlobalClaimState extends SavedData {
@@ -25,7 +26,7 @@ public class GlobalClaimState extends SavedData {
     );
 
     private static final SavedDataType<@NotNull GlobalClaimState> STATE_TYPE = new SavedDataType<>(
-            ContainerClaimMod.MOD_ID,
+            Identifier.fromNamespaceAndPath(ContainerClaimMod.MOD_ID, "claims"),
             GlobalClaimState::createDefault,
             GlobalClaimState.CODEC,
             null
@@ -54,7 +55,7 @@ public class GlobalClaimState extends SavedData {
     }
 
     public static GlobalClaimState getWorldState(ServerLevel world) {
-        DimensionDataStorage persistentStateManager = world.getDataStorage();
+        SavedDataStorage persistentStateManager = world.getDataStorage();
 
         return persistentStateManager.computeIfAbsent(STATE_TYPE);
     }

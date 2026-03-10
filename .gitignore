@@ -131,3 +131,6 @@ gradle-app.setting
 
 # idea
 .idea/
+
+# local files
+/TODO.md
