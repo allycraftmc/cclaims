@@ -40,6 +40,6 @@ Claimed hoppers will push items into unclaimed containers. Therefore, you should
 - `cclaim.group.transfer`: Allows to change the owner of a group. By default, it requires OP Level 3
 ## Storage
 The claim data is stored in the NBT data of the block entities.
-Additional metadata is stored in `world/data/cclaims.dat` and `world/data/cclaims_groups.dat`.
+Additional metadata is stored as NBT in `world/dimensions/minecraft/{overworld,the_nether,the_end}/data/cclaims/claims.dat` and `world/data/cclaims/groups.dat`.
 ## License
 This project is licensed under the GNU Lesser General Public License version 3 only.
