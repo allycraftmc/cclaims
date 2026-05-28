@@ -7,6 +7,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.CommonColors;
 import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.entity.BlockEntityTypes;
+
 import java.util.Set;
 
 public class ContainerClaimMod implements ModInitializer {
@@ -14,7 +16,7 @@ public class ContainerClaimMod implements ModInitializer {
     public static final String MOD_ID = "cclaims";
     public static final Identifier CLAIM_DATA_ID = Identifier.fromNamespaceAndPath(MOD_ID, "claim");
     // TODO Furnaces, Shulker boxes, Crafter, Dispenser/Dropper, Trapped Chest, ...
-    public static final Set<BlockEntityType<?>> SUPPORTED_BLOCK_ENTITIES = Set.of(BlockEntityType.CHEST, BlockEntityType.BARREL, BlockEntityType.HOPPER, BlockEntityType.BREWING_STAND, BlockEntityType.BEACON, BlockEntityType.SHELF);
+    public static final Set<BlockEntityType<?>> SUPPORTED_BLOCK_ENTITIES = Set.of(BlockEntityTypes.CHEST, BlockEntityTypes.BARREL, BlockEntityTypes.HOPPER, BlockEntityTypes.BREWING_STAND, BlockEntityTypes.BEACON, BlockEntityTypes.SHELF);
 
     @Override
     public void onInitialize() {

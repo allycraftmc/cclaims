@@ -9,6 +9,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
+import com.mojang.datafixers.util.Pair;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
@@ -27,7 +28,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.PermissionLevel;
 import net.minecraft.server.players.NameAndId;
 import net.minecraft.util.CommonColors;
-import net.minecraft.util.Tuple;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
@@ -646,13 +646,13 @@ public class ClaimCommand {
                 .filter(pos -> serverWorld.isLoaded(pos) || loadChunks)
                 .collect(Collectors.toSet());
 
-        List<Tuple<BlockPos, Component>> problems = new ArrayList<>();
+        List<Pair<BlockPos, Component>> problems = new ArrayList<>();
         for(BlockPos pos : loadedPositions) {
             ClaimAccess claimAccess = (ClaimAccess) serverWorld.getBlockEntity(pos);
 
             // Check Claim exists
             if(claimAccess == null || !ClaimUtils.isClaimed(claimAccess)) {
-                problems.add(new Tuple<>(pos, Component.literal("Claim not found").withColor(CommonColors.RED)));
+                problems.add(new Pair<>(pos, Component.literal("Claim not found").withColor(CommonColors.RED)));
                 continue;
             }
 
@@ -660,7 +660,7 @@ public class ClaimCommand {
             ClaimAccess otherClaimAccess = (ClaimAccess) DoubleChestUtils.getNeighborBlockEntity(pos, serverWorld);
             if(otherClaimAccess != null) {
                 if(!ClaimUtils.isClaimed(otherClaimAccess)) {
-                    problems.add(new Tuple<>(pos, Component.literal("Double Chest not fully claimed").withColor(CommonColors.YELLOW)));
+                    problems.add(new Pair<>(pos, Component.literal("Double Chest not fully claimed").withColor(CommonColors.YELLOW)));
                     continue;
                 }
 
@@ -668,12 +668,12 @@ public class ClaimCommand {
                 ClaimComponent otherClaim = otherClaimAccess.cclaims$getClaim();
 
                 if(!claim.owner().equals(otherClaim.owner())) {
-                    problems.add(new Tuple<>(pos, Component.literal("Double Chest owners do not match").withColor(CommonColors.YELLOW)));
+                    problems.add(new Pair<>(pos, Component.literal("Double Chest owners do not match").withColor(CommonColors.YELLOW)));
                     continue;
                 }
 
                 if(!claim.trusted().equals(otherClaim.trusted())) {
-                    problems.add(new Tuple<>(pos, Component.literal("Double Chest trusted players do not match").withColor(CommonColors.YELLOW)));
+                    problems.add(new Pair<>(pos, Component.literal("Double Chest trusted players do not match").withColor(CommonColors.YELLOW)));
                     continue;
                 }
             }
@@ -685,9 +685,9 @@ public class ClaimCommand {
             ctx.getSource().sendSuccess(() -> Component.literal("No problems found").withColor(CommonColors.GREEN), false);
         } else {
             ctx.getSource().sendSuccess(() -> Component.literal(problems.size() + " problems found").withColor(CommonColors.RED), false);
-            for(Tuple<BlockPos, Component> entry : problems) {
+            for(Pair<BlockPos, Component> entry : problems) {
                 ctx.getSource().sendSuccess(
-                        () -> Component.literal("- ").append(getTextOfBlockPos(entry.getA(), false).withColor(CommonColors.GREEN)).append(": ").append(entry.getB()),
+                        () -> Component.literal("- ").append(getTextOfBlockPos(entry.getFirst(), false).withColor(CommonColors.GREEN)).append(": ").append(entry.getSecond()),
                         false
                 );
             }
