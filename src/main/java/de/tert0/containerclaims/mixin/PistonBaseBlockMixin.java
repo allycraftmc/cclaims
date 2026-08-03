@@ -18,9 +18,9 @@ public abstract class PistonBaseBlockMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;removeBlock(Lnet/minecraft/core/BlockPos;Z)Z"),
             cancellable = true
     )
-    void triggerEvent(BlockState state, Level world, BlockPos pos, int type, int data, CallbackInfoReturnable<Boolean> cir) {
+    void triggerEvent(BlockState state, Level level, BlockPos pos, int type, int data, CallbackInfoReturnable<Boolean> cir) {
         BlockPos affectedPos = pos.relative(state.getValue(PistonBaseBlock.FACING));
-        ClaimAccess claimAccess = (ClaimAccess) world.getBlockEntity(affectedPos);
+        ClaimAccess claimAccess = (ClaimAccess) level.getBlockEntity(affectedPos);
         if(claimAccess != null && ClaimUtils.isClaimed(claimAccess)) {
             cir.setReturnValue(false);
         }

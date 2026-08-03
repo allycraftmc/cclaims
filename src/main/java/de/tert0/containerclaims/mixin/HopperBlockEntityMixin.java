@@ -21,9 +21,9 @@ public abstract class HopperBlockEntityMixin {
             at = @At(value = "FIELD", target = "Lnet/minecraft/core/Direction;DOWN:Lnet/minecraft/core/Direction;", opcode = Opcodes.GETSTATIC),
             cancellable = true
     )
-    private static void suckInItems(Level world, Hopper hopper, CallbackInfoReturnable<Boolean> cir) {
+    private static void suckInItems(Level level, Hopper hopper, CallbackInfoReturnable<Boolean> cir) {
         BlockPos blockPos = BlockPos.containing(hopper.getLevelX(), hopper.getLevelY() + 1.0, hopper.getLevelZ());
-        ClaimAccess claimAccess = (ClaimAccess) world.getBlockEntity(blockPos);
+        ClaimAccess claimAccess = (ClaimAccess) level.getBlockEntity(blockPos);
         if(claimAccess != null && ClaimUtils.isClaimed(claimAccess)) {
             if(hopper instanceof HopperBlockEntity hopperBlockEntity) {
                 ClaimAccess hopperClaimAccess = (ClaimAccess) hopperBlockEntity;
@@ -44,11 +44,11 @@ public abstract class HopperBlockEntityMixin {
             at = @At("HEAD"),
             cancellable = true
     )
-    private static void ejectItems(Level world, BlockPos pos, HopperBlockEntity blockEntity, CallbackInfoReturnable<Boolean> cir) {
-        BlockState state = world.getBlockState(pos);
-        ClaimAccess claimAccess = (ClaimAccess) world.getBlockEntity(pos.relative(state.getValue(HopperBlock.FACING)));
+    private static void ejectItems(Level level, BlockPos blockPos, HopperBlockEntity self, CallbackInfoReturnable<Boolean> cir) {
+        BlockState state = level.getBlockState(blockPos);
+        ClaimAccess claimAccess = (ClaimAccess) level.getBlockEntity(blockPos.relative(state.getValue(HopperBlock.FACING)));
         if(claimAccess != null && ClaimUtils.isClaimed(claimAccess)) {
-            ClaimAccess hopperClaimAccess = (ClaimAccess) blockEntity;
+            ClaimAccess hopperClaimAccess = (ClaimAccess) self;
             if(
                     !ClaimUtils.isClaimed(hopperClaimAccess)
                             || (!hopperClaimAccess.cclaims$getClaim().owner().equals(claimAccess.cclaims$getClaim().owner()) && !claimAccess.cclaims$getClaim().trusted().contains(hopperClaimAccess.cclaims$getClaim().owner()))

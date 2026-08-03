@@ -21,8 +21,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(ShelfBlock.class)
 public class ShelfBlockMixin {
     @Inject(method = "useItemOn", at = @At("HEAD"), cancellable = true)
-    void useItemOn(ItemStack stack, BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit, CallbackInfoReturnable<InteractionResult> cir) {
-        BlockEntity blockEntity = world.getBlockEntity(pos);
+    void useItemOn(ItemStack itemStack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult, CallbackInfoReturnable<InteractionResult> cir) {
+        BlockEntity blockEntity = level.getBlockEntity(pos);
         ClaimAccess claimAccess = (ClaimAccess) blockEntity;
         if(claimAccess == null || !ClaimUtils.isClaimed(claimAccess)) return;
         if(!ClaimUtils.canUse(claimAccess, (ServerPlayer) player)) {

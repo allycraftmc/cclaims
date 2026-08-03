@@ -18,7 +18,7 @@ import net.minecraft.world.phys.AABB;
 @Mixin(TransportItemsBetweenContainers.class)
 public class TransportItemsBetweenContainersMixin {
     @Inject(method = "isTargetValidToPick", at = @At("RETURN"), cancellable = true)
-    void isTargetValidToPick(PathfinderMob entity, Level world, BlockEntity blockEntity, Set<GlobalPos> visitedPositions, Set<GlobalPos> unreachablePositions, AABB box, CallbackInfoReturnable<TransportItemsBetweenContainers.TransportItemTarget> cir) {
+    void isTargetValidToPick(PathfinderMob body, Level level, BlockEntity blockEntity, Set<GlobalPos> visitedPositions, Set<GlobalPos> unreachablePositions, AABB targetBlockSearchArea, CallbackInfoReturnable<TransportItemsBetweenContainers.TransportItemTarget> cir) {
         ClaimAccess claimAccess = (ClaimAccess) blockEntity;
         if(claimAccess != null && ClaimUtils.isClaimed(claimAccess)) {
             cir.setReturnValue(null);

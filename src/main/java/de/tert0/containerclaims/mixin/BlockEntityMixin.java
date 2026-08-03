@@ -36,9 +36,9 @@ public abstract class BlockEntityMixin implements ClaimAccess {
     private boolean dataFixupCompleted = false;
 
     @Inject(method = "saveAdditional", at = @At("RETURN"))
-    private void saveAdditional(ValueOutput view, CallbackInfo ci) {
+    private void saveAdditional(ValueOutput output, CallbackInfo ci) {
         if(this.claim == null) return;
-        view.store(ContainerClaimMod.CLAIM_DATA_ID.toString(), ClaimComponent.CODEC, this.claim);
+        output.store(ContainerClaimMod.CLAIM_DATA_ID.toString(), ClaimComponent.CODEC, this.claim);
 
         // to track claimed containers that were not directly claimed through the mod (e.g. modifying nbt or cloning a block entity)
         if(!this.isRemoved()) {
@@ -47,8 +47,8 @@ public abstract class BlockEntityMixin implements ClaimAccess {
     }
 
     @Inject(method = "loadAdditional", at = @At("RETURN"))
-    private void loadAdditional(ValueInput view, CallbackInfo ci) {
-        view.read(ContainerClaimMod.CLAIM_DATA_ID.toString(), ClaimComponent.CODEC).ifPresent(claim -> this.claim = claim);
+    private void loadAdditional(ValueInput input, CallbackInfo ci) {
+        input.read(ContainerClaimMod.CLAIM_DATA_ID.toString(), ClaimComponent.CODEC).ifPresent(claim -> this.claim = claim);
     }
 
     @Unique

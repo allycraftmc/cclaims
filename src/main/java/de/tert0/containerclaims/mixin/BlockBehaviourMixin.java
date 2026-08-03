@@ -27,8 +27,8 @@ import net.minecraft.world.phys.BlockHitResult;
 @Mixin(BlockBehaviour.class)
 public class BlockBehaviourMixin {
     @Inject(method = "useItemOn", at = @At("RETURN"), cancellable = true)
-    void useItemOn(ItemStack stack, BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit, CallbackInfoReturnable<InteractionResult> cir) {
-        ClaimAccess claimAccess = (ClaimAccess) world.getBlockEntity(pos);
+    void useItemOn(ItemStack itemStack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult, CallbackInfoReturnable<InteractionResult> cir) {
+        ClaimAccess claimAccess = (ClaimAccess) level.getBlockEntity(pos);
         if(claimAccess == null || !ClaimUtils.isClaimed(claimAccess)) return;
 
         if(!ClaimUtils.canUse(claimAccess, (ServerPlayer) player)) {
@@ -38,8 +38,8 @@ public class BlockBehaviourMixin {
     }
 
     @Inject(method = "onExplosionHit", at = @At("HEAD"), cancellable = true)
-    void onExplosionHit(BlockState state, ServerLevel world, BlockPos pos, Explosion explosion, BiConsumer<ItemStack, BlockPos> stackMerger, CallbackInfo ci) {
-        ClaimAccess claimAccess = (ClaimAccess) world.getBlockEntity(pos);
+    void onExplosionHit(BlockState state, ServerLevel level, BlockPos pos, Explosion explosion, BiConsumer<ItemStack, BlockPos> onHit, CallbackInfo ci) {
+        ClaimAccess claimAccess = (ClaimAccess) level.getBlockEntity(pos);
         if(claimAccess != null && ClaimUtils.isClaimed(claimAccess)) {
             ci.cancel();
         }
