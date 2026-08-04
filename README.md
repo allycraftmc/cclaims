@@ -5,14 +5,15 @@ This mod provides the `/cclaim` command to work with the claims.
 Permissions can be managed by [LuckPerms](https://github.com/LuckPerms/LuckPerms) or any other mod implementing the [fabric-permissions-api](https://github.com/lucko/fabric-permissions-api).
 
 **Features:**
-- Supported Container Blocks: Chests, Copper Chests, Barrels, Hoppers, Shelfs, Brewing Stands and Beacons
+- Supported Container Blocks: Chests, Copper Chests, Barrels, Shelfs, Furnaces, Blast Furnaces, Smokers, Brewing Stands, Dispensers, Hoppers, Droppers, Crafters and Beacons
 - Prevents usage and destruction of claimed blocks by other players (except admin mode players)
   - Prevents destruction by explosions, headless pistons (aka. the bedrock breaking method) or the Ender dragon
 - Players can add ("trust") players to their claims.
 - Claims can trust registered groups that can be managed dynamically by players
 
 **Note:**
-Claimed hoppers will push items into unclaimed containers. Therefore, you should not have claimed hoppers facing an unclaimed block (including normal non-container blocks that cannot be claimed).
+Claimed Hoppers/Droppers/Crafters will push items into unclaimed containers. Therefore, you should avoid having claimed hoppers facing an unclaimed block (including normal non-container blocks that cannot be claimed) if you want to prevent stealing items from them.
+Additionally, Crafters will drop the crafted items if the faced container is full (vanilla behavior) or claimed by another player.
 
 ## Commands
 - `/cclaim claim`: Claims the container the player is facing
@@ -35,7 +36,7 @@ Claimed hoppers will push items into unclaimed containers. Therefore, you should
 - `cclaim.adminmode`: Required to use `/cclaim adminmode`. By default, it requires OP Level 3
 - `cclaim.list`: Required to use `/cclaim list`. By default, it requires OP Level 2
 - `cclaim.info.admin`: Allows to get all data using `/cclaim info` on claims owned by other players and additionally shows the timestamp of claim creation. By default, it requires OP Level 2
-- `cclaim.group.create`: Allows players to create groups. By default, all players have can do this.
+- `cclaim.group.create`: Allows players to create groups. By default, all players can do this.
 - `cclaim.group.admin`: Allows to use group commands on groups that the player does not own. By default, it requires OP Level 3
 - `cclaim.group.transfer`: Allows to change the owner of a group. By default, it requires OP Level 3
 ## Storage

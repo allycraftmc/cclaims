@@ -15,17 +15,25 @@ public class ContainerClaimMod implements ModInitializer {
 
     public static final String MOD_ID = "cclaims";
     public static final Identifier CLAIM_DATA_ID = Identifier.fromNamespaceAndPath(MOD_ID, "claim");
-    // TODO Shulker boxes, Crafter, Dispenser/Dropper, Trapped Chest, ...
+    // TODO Shulker boxes, Trapped Chest?, ...
     public static final Set<BlockEntityType<?>> SUPPORTED_BLOCK_ENTITIES = Set.of(
+            // "Normal" Containers
             BlockEntityTypes.CHEST,
             BlockEntityTypes.BARREL,
-            BlockEntityTypes.HOPPER,
-            BlockEntityTypes.BREWING_STAND,
-            BlockEntityTypes.BEACON,
             BlockEntityTypes.SHELF,
             BlockEntityTypes.FURNACE,
             BlockEntityTypes.BLAST_FURNACE,
-            BlockEntityTypes.SMOKER
+            BlockEntityTypes.SMOKER,
+            BlockEntityTypes.BREWING_STAND,
+            BlockEntityTypes.DISPENSER,
+
+            // Hopper-likes (can push items into neighbors)
+            BlockEntityTypes.HOPPER,
+            BlockEntityTypes.DROPPER,
+            BlockEntityTypes.CRAFTER,
+
+            // Not Containers
+            BlockEntityTypes.BEACON
     );
 
     @Override

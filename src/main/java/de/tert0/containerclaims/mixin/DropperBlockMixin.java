@@ -7,6 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.DropperBlock;
+import net.minecraft.world.level.block.entity.DispenserBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -23,10 +24,16 @@ public class DropperBlockMixin {
             ),
             cancellable = true
     )
-    void beforeItemTransfer(ServerLevel level, BlockState state, BlockPos pos, CallbackInfo ci, @Local(name = "direction") Direction direction) {
+    void beforeItemTransfer(ServerLevel level, BlockState state, BlockPos pos, CallbackInfo ci, @Local(name = "blockEntity") DispenserBlockEntity blockEntity, @Local(name = "direction") Direction direction) {
         ClaimAccess claimAccess = (ClaimAccess) level.getBlockEntity(pos.relative(direction));
         if(claimAccess != null && ClaimUtils.isClaimed(claimAccess)) {
-            ci.cancel();
+            ClaimAccess dropperClaimAccess = (ClaimAccess) blockEntity;
+            if(
+                    !ClaimUtils.isClaimed(dropperClaimAccess)
+                        || (!dropperClaimAccess.cclaims$getClaim().owner().equals(claimAccess.cclaims$getClaim().owner()) && !claimAccess.cclaims$getClaim().trusted().contains(dropperClaimAccess.cclaims$getClaim().owner()))
+            ) {
+                ci.cancel();
+            }
         }
     }
 }
