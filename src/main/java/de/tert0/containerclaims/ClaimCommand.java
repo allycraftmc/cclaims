@@ -70,7 +70,7 @@ public class ClaimCommand {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(
                     literal("cclaim")
-                            .executes(ClaimCommand::helpCommand)
+                            .executes(ClaimCommand::claimCommand)
                             .then(
                                     literal("help")
                                             .executes(ClaimCommand::helpCommand)

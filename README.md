@@ -16,7 +16,7 @@ Claimed Hoppers/Droppers/Crafters will push items into unclaimed containers. The
 Additionally, Crafters will drop the crafted items if the faced container is full (vanilla behavior) or claimed by another player.
 
 ## Commands
-- `/cclaim claim`: Claims the container the player is facing
+- `/cclaim` or `/cclaim claim`: Claims the container the player is facing
 - `/cclaim unclaim`: Unclaims the container the player is facing
 - `/cclaim trust <player>`: Trusts a player to use the claimed container. Trusted players can only use the container, but neither destroy the block nor manage the claim.
 - `/cclaim untrust <player>`: Untrusts a player from a claimed container
