@@ -12,6 +12,7 @@
     "DropperBlockMixin",
     "EnderDragonMixin",
     "HopperBlockEntityMixin",
+    "ServerCommonPacketListenerImplMixin",
     "PistonBaseBlockMixin",
     "ServerPlayerMixin",
     "ShelfBlockMixin",

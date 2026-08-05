@@ -10,6 +10,8 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.datafixers.util.Pair;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
@@ -17,11 +19,15 @@ import net.minecraft.commands.arguments.DimensionArgument;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.GameProfileArgument;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -29,6 +35,7 @@ import net.minecraft.server.permissions.PermissionLevel;
 import net.minecraft.server.players.NameAndId;
 import net.minecraft.util.CommonColors;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.NotNull;
@@ -36,6 +43,7 @@ import org.jetbrains.annotations.NotNull;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static net.minecraft.commands.Commands.argument;
@@ -49,7 +57,6 @@ public class ClaimCommand {
     private static final SimpleCommandExceptionType NOT_OWNER = new SimpleCommandExceptionType(new LiteralMessage("The container is not yours!"));
     private static final SimpleCommandExceptionType ALREADY_CLAIMED = new SimpleCommandExceptionType(new LiteralMessage("The container is already claimed!"));
     private static final SimpleCommandExceptionType PAGE_OUT_OF_BOUNDS = new SimpleCommandExceptionType(new LiteralMessage("Page out of bounds"));
-    private static final SimpleCommandExceptionType MISSING_DIMENSION_REGISTRY_KEY = new SimpleCommandExceptionType(new LiteralMessage("Internal Error. Dimension has no Registry Key"));
 
     private static final SimpleCommandExceptionType GROUP_ALREADY_EXISTS = new SimpleCommandExceptionType(new LiteralMessage("This group already exists"));
     private static final SimpleCommandExceptionType GROUP_NAME_INVALID_CHARACTER = new SimpleCommandExceptionType(new LiteralMessage("Group names have to only contain lowercase letter, numbers and underscores"));
@@ -64,6 +71,7 @@ public class ClaimCommand {
 
     private static final SimpleCommandExceptionType PERMISSION_DENIED = new SimpleCommandExceptionType(new LiteralMessage("Permission denied"));
 
+    private static final Predicate<CommandSourceStack> PERMISSION_CHECK_LIST = Permissions.require("cclaim.list",PermissionLevel.GAMEMASTERS);
     private static final int LIST_PAGE_SIZE = 8;
 
     public static void init() {
@@ -124,23 +132,23 @@ public class ClaimCommand {
                             )
                             .then(
                                     literal("list")
-                                            .requires(Permissions.require("cclaim.list", PermissionLevel.GAMEMASTERS))
-                                            .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), ctx.getSource().getPlayerOrException().level(), 1))
+                                            .requires(PERMISSION_CHECK_LIST)
+                                            .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), ctx.getSource().getPlayerOrException().level().dimension(), 1))
                                             .then(
                                                     argument("dimension", DimensionArgument.dimension())
-                                                            .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), DimensionArgument.getDimension(ctx, "dimension"), 1))
+                                                            .executes(ctx -> ClaimCommand.listCommand(ctx.getSource(), DimensionArgument.getDimension(ctx, "dimension").dimension(), 1))
                                                             .then(
                                                                     argument("page", IntegerArgumentType.integer(1))
                                                                             .executes(
                                                                                     ctx ->
-                                                                                            ClaimCommand.listCommand(ctx.getSource(), DimensionArgument.getDimension(ctx, "dimension"), IntegerArgumentType.getInteger(ctx, "page"))
+                                                                                            ClaimCommand.listCommand(ctx.getSource(), DimensionArgument.getDimension(ctx, "dimension").dimension(), IntegerArgumentType.getInteger(ctx, "page"))
                                                                             )
                                                             )
                                                             .then(
                                                                     literal("all")
                                                                             .executes(
                                                                                     ctx ->
-                                                                                            ClaimCommand.listCommand(ctx.getSource(), DimensionArgument.getDimension(ctx, "dimension"), -1)
+                                                                                            ClaimCommand.listCommand(ctx.getSource(), DimensionArgument.getDimension(ctx, "dimension").dimension(), -1)
                                                                             )
                                                             )
                                             )
@@ -554,15 +562,15 @@ public class ClaimCommand {
                 .orElse(uuid.toString());
     }
 
-    private static int listCommand(CommandSourceStack source, ServerLevel serverWorld, int page) throws CommandSyntaxException {
-        List<BlockPos> positions = GlobalClaimState.getWorldState(serverWorld).getPositions()
+    public static int listCommand(CommandSourceStack source, ResourceKey<Level> dimension, int page) throws CommandSyntaxException {
+        if(!PERMISSION_CHECK_LIST.test(source)) throw PERMISSION_DENIED.create();
+
+        ServerLevel serverLevel = Optional.ofNullable(source.getServer().getLevel(dimension)).orElse(source.getLevel());
+        List<BlockPos> positions = GlobalClaimState.getWorldState(serverLevel).getPositions()
                 .stream()
                 .sorted() // TODO maybe some kind of 3d spiral around the origin
                 .toList();
-        Identifier dimension = serverWorld.dimensionTypeRegistration().unwrapKey()
-                .orElseThrow(MISSING_DIMENSION_REGISTRY_KEY::create)
-                .identifier();
-        String dimensionName = dimension.getPath();
+        String dimensionName = dimension.identifier().getPath();
 
         int totalPageCount = Math.ceilDiv(positions.size(), LIST_PAGE_SIZE);
 
@@ -587,8 +595,8 @@ public class ClaimCommand {
 
             for(BlockPos pos : positions) {
                 Optional<Component> extraText = Optional.empty();
-                if(serverWorld.isLoaded(pos)) {
-                    ClaimAccess claimAccess = (ClaimAccess) serverWorld.getBlockEntity(pos);
+                if(serverLevel.isLoaded(pos)) {
+                    ClaimAccess claimAccess = (ClaimAccess) serverLevel.getBlockEntity(pos);
                     if(claimAccess != null) {
                         List<String> trustedNames = claimAccess.cclaims$getClaim().trusted().stream()
                                 .map(uuid -> getPlayerNameOrUuid(uuid, source.getServer()))
@@ -612,14 +620,20 @@ public class ClaimCommand {
 
             if(page != -1) {
                 Component btnPrev = (page > 1) ? Component.literal("<<")
-                        .withStyle(style -> style
-                                .withClickEvent(new ClickEvent.RunCommand("/cclaim list " + dimension + " " + (page - 1)))
-                                .withHoverEvent(new HoverEvent.ShowText(Component.nullToEmpty("Previous Page")))
+                        .withStyle(style -> {
+                            Tag tag = ListChangePageAction.CODEC.encodeStart(NbtOps.INSTANCE, new ListChangePageAction(dimension, page - 1)).getOrThrow();
+                            return style
+                                    .withClickEvent(new ClickEvent.Custom(ListChangePageAction.IDENTIFIER, Optional.of(tag)))
+                                    .withHoverEvent(new HoverEvent.ShowText(Component.nullToEmpty("Previous Page")));
+                        }
                         ) : Component.literal("<<");
                 Component btnNext = (page + 1 <= totalPageCount) ? Component.literal(">>")
-                        .withStyle(style -> style
-                                .withClickEvent(new ClickEvent.RunCommand("/cclaim list " + dimension + " " + (page + 1)))
-                                .withHoverEvent(new HoverEvent.ShowText(Component.nullToEmpty("Next Page")))
+                        .withStyle(style -> {
+                            Tag tag = ListChangePageAction.CODEC.encodeStart(NbtOps.INSTANCE, new ListChangePageAction(dimension, page + 1)).getOrThrow();
+                            return style
+                                    .withClickEvent(new ClickEvent.Custom(ListChangePageAction.IDENTIFIER, Optional.of(tag)))
+                                    .withHoverEvent(new HoverEvent.ShowText(Component.nullToEmpty("Next Page")));
+                        }
                         ) : Component.literal(">>");
                 text.append(
                         Component.literal("\n----- ")
@@ -922,5 +936,13 @@ public class ClaimCommand {
         );
 
         return Command.SINGLE_SUCCESS;
+    }
+
+    public record ListChangePageAction(ResourceKey<Level> dimension, int page) {
+        public static final Identifier IDENTIFIER = Identifier.fromNamespaceAndPath(ContainerClaimMod.MOD_ID, "list/change-page");
+        public static final Codec<ListChangePageAction> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                ResourceKey.codec(Registries.DIMENSION).fieldOf("dimension").forGetter(ListChangePageAction::dimension),
+                Codec.INT.fieldOf("page").forGetter(ListChangePageAction::page)
+        ).apply(instance, ListChangePageAction::new));
     }
 }
