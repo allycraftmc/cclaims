@@ -26,6 +26,7 @@ public class ContainerClaimMod implements ModInitializer {
             BlockEntityTypes.SMOKER,
             BlockEntityTypes.BREWING_STAND,
             BlockEntityTypes.DISPENSER,
+            BlockEntityTypes.CHISELED_BOOKSHELF,
 
             // Hopper-likes (can push items into neighbors)
             BlockEntityTypes.HOPPER,
