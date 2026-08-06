@@ -3,8 +3,13 @@ package de.tert0.containerclaims;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.CommonColors;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.entity.BlockEntityTypes;
@@ -41,25 +46,37 @@ public class ContainerClaimMod implements ModInitializer {
     public void onInitialize() {
         ClaimCommand.init();
 
-        PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
+        PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) -> {
             ClaimAccess claimAccess = (ClaimAccess) blockEntity;
-            if(blockEntity == null || !ClaimUtils.isClaimed(claimAccess)) return true;
+            if(claimAccess == null || !ClaimUtils.isClaimed(claimAccess)) return true;
 
             if(!ClaimUtils.isOwnerOrAdmin(claimAccess, player)) {
                 player.sendOverlayMessage(Component.literal("This block is claimed!").withColor(CommonColors.RED));
+
+                MinecraftServer server = level.getServer();
+                Packet<ClientGamePacketListener> packet = blockEntity.getUpdatePacket();
+                if(packet != null && server != null) {
+                    // a bit hacky. ClientboundBlockEntityDataPacket has to send after ClientboundBlockChangedAckPacket
+                    // which gets send on the next tick by ServerGamePacketListenerImpl::tick.
+                    // Related to MC-36093
+                    server.schedule(server.wrapRunnable(() -> {
+                        ((ServerPlayer) player).connection.send(new ClientboundBlockUpdatePacket(level, pos));
+                        ((ServerPlayer) player).connection.send(packet);
+                    }));
+                }
                 return false;
             }
 
             return true;
         });
 
-        PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
+        PlayerBlockBreakEvents.AFTER.register((level, player, pos, state, blockEntity) -> {
             ClaimAccess claimAccess = (ClaimAccess) blockEntity;
             if(blockEntity == null || !ClaimUtils.isClaimed(claimAccess)) return;
 
             if(!ClaimUtils.isOwnerOrAdmin(claimAccess, player)) return;
 
-            ClaimUtils.markUnclaimed(claimAccess, (ServerLevel) world);
+            ClaimUtils.markUnclaimed(claimAccess, (ServerLevel) level);
         });
     }
 }
