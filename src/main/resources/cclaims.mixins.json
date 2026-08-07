@@ -16,6 +16,7 @@
     "PistonBaseBlockMixin",
     "ServerCommonPacketListenerImplMixin",
     "ServerPlayerMixin",
+    "SideChainPartBlockNeighborsMixin",
     "TransportItemsBetweenContainersMixin",
     "WorldMixin"
   ],
