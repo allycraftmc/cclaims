@@ -7,7 +7,6 @@
     "BlockBehaviourMixin",
     "BlockEntityMixin",
     "BlockItemMixin",
-    "BlockStateBaseMixin",
     "CrafterBlockMixin",
     "DimensionStorageFileFixMixin",
     "DropperBlockMixin",

@@ -1,7 +1,9 @@
 package de.tert0.containerclaims;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.player.BlockEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -11,6 +13,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.CommonColors;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.entity.BlockEntityTypes;
 
@@ -78,5 +81,17 @@ public class ContainerClaimMod implements ModInitializer {
 
             ClaimUtils.markUnclaimed(claimAccess, (ServerLevel) level);
         });
+
+        BlockEvents.USE_ITEM_ON.register(((itemStack, blockState, level, blockPos, player, interactionHand, blockHitResult) -> {
+            ClaimAccess claimAccess = (ClaimAccess) level.getBlockEntity(blockPos);
+            if(claimAccess == null || !ClaimUtils.isClaimed(claimAccess)) return null;
+
+            if(!ClaimUtils.canUse(claimAccess, (ServerPlayer) player)) {
+                player.sendOverlayMessage(Component.literal("This block is claimed!").withColor(CommonColors.RED));
+                return InteractionResult.SUCCESS;
+            }
+
+            return null;
+        }));
     }
 }
