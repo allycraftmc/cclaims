@@ -530,13 +530,13 @@ public class ClaimCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static MutableComponent getTextOfBlockPos(BlockPos pos, boolean copyable) {
+    private static MutableComponent getTextOfBlockPos(ServerLevel level, BlockPos pos, boolean copyable) {
         String formattedPos = pos.getX() + " " + pos.getY() + " " + pos.getZ();
         MutableComponent text = Component.literal(formattedPos)
                 .withStyle(
                         style -> style
                                 .withHoverEvent(new HoverEvent.ShowText(Component.nullToEmpty("Click to teleport")))
-                                .withClickEvent(new ClickEvent.RunCommand("/tp " + formattedPos))
+                                .withClickEvent(new ClickEvent.RunCommand("/execute in " + level.dimension().identifier() + " run tp " + formattedPos))
                 );
 
         if(copyable) {
@@ -614,7 +614,7 @@ public class ClaimCommand {
                 }
 
                 text.append(Component.nullToEmpty("\n  - "));
-                text.append(getTextOfBlockPos(pos, true).copy().withColor(CommonColors.GREEN));
+                text.append(getTextOfBlockPos(serverLevel, pos, true).copy().withColor(CommonColors.GREEN));
                 extraText.ifPresent(text::append);
             }
 
@@ -653,16 +653,16 @@ public class ClaimCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int verifyCommand(CommandContext<CommandSourceStack> ctx, ServerLevel serverWorld, boolean loadChunks) {
-        Set<BlockPos> allPositions = GlobalClaimState.getWorldState(serverWorld).getPositions();
+    private static int verifyCommand(CommandContext<CommandSourceStack> ctx, ServerLevel serverLevel, boolean loadChunks) {
+        Set<BlockPos> allPositions = GlobalClaimState.getWorldState(serverLevel).getPositions();
 
         Set<BlockPos> loadedPositions = allPositions.stream()
-                .filter(pos -> serverWorld.isLoaded(pos) || loadChunks)
+                .filter(pos -> serverLevel.isLoaded(pos) || loadChunks)
                 .collect(Collectors.toSet());
 
         List<Pair<BlockPos, Component>> problems = new ArrayList<>();
         for(BlockPos pos : loadedPositions) {
-            ClaimAccess claimAccess = (ClaimAccess) serverWorld.getBlockEntity(pos);
+            ClaimAccess claimAccess = (ClaimAccess) serverLevel.getBlockEntity(pos);
 
             // Check Claim exists
             if(claimAccess == null || !ClaimUtils.isClaimed(claimAccess)) {
@@ -671,7 +671,7 @@ public class ClaimCommand {
             }
 
             // Check Double Chests
-            ClaimAccess otherClaimAccess = (ClaimAccess) DoubleChestUtils.getNeighborBlockEntity(pos, serverWorld);
+            ClaimAccess otherClaimAccess = (ClaimAccess) DoubleChestUtils.getNeighborBlockEntity(pos, serverLevel);
             if(otherClaimAccess != null) {
                 if(!ClaimUtils.isClaimed(otherClaimAccess)) {
                     problems.add(new Pair<>(pos, Component.literal("Double Chest not fully claimed").withColor(CommonColors.YELLOW)));
@@ -707,7 +707,7 @@ public class ClaimCommand {
             ctx.getSource().sendSuccess(() -> Component.literal(problems.size() + " problems found").withColor(CommonColors.RED), false);
             for(Pair<BlockPos, Component> entry : problems) {
                 ctx.getSource().sendSuccess(
-                        () -> Component.literal("- ").append(getTextOfBlockPos(entry.getFirst(), false).withColor(CommonColors.GREEN)).append(": ").append(entry.getSecond()),
+                        () -> Component.literal("- ").append(getTextOfBlockPos(serverLevel, entry.getFirst(), false).withColor(CommonColors.GREEN)).append(": ").append(entry.getSecond()),
                         false
                 );
             }
