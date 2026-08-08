@@ -690,6 +690,12 @@ public class ClaimCommand {
                     problems.add(new Pair<>(pos, Component.literal("Double Chest trusted players do not match").withColor(CommonColors.YELLOW)));
                     continue;
                 }
+
+                if(!claim.trustedGroups().equals(otherClaim.trustedGroups())) {
+                    problems.add(new Pair<>(pos, Component.literal("Double Chest trusted groups do not match").withColor(CommonColors.YELLOW)));
+                    //noinspection UnnecessaryContinue
+                    continue;
+                }
             }
         }
 
