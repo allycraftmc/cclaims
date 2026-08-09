@@ -692,33 +692,35 @@ public class ClaimCommand {
                 problems.add(new Pair<>(pos, Component.literal("Claim not found").withColor(CommonColors.RED)));
                 continue;
             }
+            ClaimComponent claim = claimAccess.cclaims$getClaim();
 
             // Check Double Chests
             ClaimAccess otherClaimAccess = (ClaimAccess) DoubleChestUtils.getNeighborBlockEntity(pos, serverLevel);
             if(otherClaimAccess != null) {
                 if(!ClaimUtils.isClaimed(otherClaimAccess)) {
                     problems.add(new Pair<>(pos, Component.literal("Double Chest not fully claimed").withColor(CommonColors.YELLOW)));
-                    continue;
-                }
+                } else {
+                    ClaimComponent otherClaim = otherClaimAccess.cclaims$getClaim();
 
-                ClaimComponent claim = claimAccess.cclaims$getClaim();
-                ClaimComponent otherClaim = otherClaimAccess.cclaims$getClaim();
+                    if(!claim.owner().equals(otherClaim.owner())) {
+                        problems.add(new Pair<>(pos, Component.literal("Double Chest owners do not match").withColor(CommonColors.YELLOW)));
+                    }
 
-                if(!claim.owner().equals(otherClaim.owner())) {
-                    problems.add(new Pair<>(pos, Component.literal("Double Chest owners do not match").withColor(CommonColors.YELLOW)));
-                    continue;
-                }
+                    if(!claim.trusted().equals(otherClaim.trusted())) {
+                        problems.add(new Pair<>(pos, Component.literal("Double Chest trusted players do not match").withColor(CommonColors.YELLOW)));
+                    }
 
-                if(!claim.trusted().equals(otherClaim.trusted())) {
-                    problems.add(new Pair<>(pos, Component.literal("Double Chest trusted players do not match").withColor(CommonColors.YELLOW)));
-                    continue;
+                    if(!claim.trustedGroups().equals(otherClaim.trustedGroups())) {
+                        problems.add(new Pair<>(pos, Component.literal("Double Chest trusted groups do not match").withColor(CommonColors.YELLOW)));
+                    }
                 }
+            }
 
-                if(!claim.trustedGroups().equals(otherClaim.trustedGroups())) {
-                    problems.add(new Pair<>(pos, Component.literal("Double Chest trusted groups do not match").withColor(CommonColors.YELLOW)));
-                    //noinspection UnnecessaryContinue
-                    continue;
-                }
+            // Check for non-existent trusted groups
+            GroupState groupState = GroupState.getState(serverLevel.getServer());
+            Set<UUID> groupUuids = groupState.getGroups().stream().map(GroupComponent::uuid).collect(Collectors.toSet());
+            if(!groupUuids.containsAll(claim.trustedGroups())) {
+                problems.add(new Pair<>(pos, Component.literal("Claim trusts a group that does not exist").withColor(CommonColors.YELLOW)));
             }
         }
 
