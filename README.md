@@ -30,7 +30,7 @@ Additionally, Crafters will drop the crafted items if the faced container is ful
 - `/cclaim group join <group> <player>`: Adds a player to the group.
 - `/cclaim group leave <group> <player>`: Removes a member from the group.
 - `/cclaim group info <group>`: Shows the name, owner and members of the group.
-- `/cclaim group list`: Lists all groups the player is a member of.
+- `/cclaim group list [all]`: Lists all groups the player is a member of.
 - `/cclaim group transfer <group> <player>`: Changes the owner of a group.
 ## Permissions
 - `cclaim.adminmode`: Required to use `/cclaim adminmode`. By default, it requires OP Level 3

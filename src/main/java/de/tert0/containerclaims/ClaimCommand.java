@@ -155,7 +155,7 @@ public class ClaimCommand {
                                                                     literal("all")
                                                                             .executes(
                                                                                     ctx ->
-                                                                                            ClaimCommand.listCommand(ctx.getSource(), DimensionArgument.getDimension(ctx, "dimension").dimension(), -1)
+                                                                                            ClaimCommand.listCommand(ctx.getSource(), DimensionArgument.getDimension(ctx, "dimension").dimension(), 0)
                                                                             )
                                                             )
                                             )
@@ -213,7 +213,15 @@ public class ClaimCommand {
                                             )
                                             .then(
                                                     literal("list")
-                                                            .executes(ClaimCommand::groupListCommand)
+                                                            .executes(ctx -> ClaimCommand.groupListCommand(ctx.getSource(), 1))
+                                                            .then(
+                                                                    argument("page", IntegerArgumentType.integer(1))
+                                                                            .executes(ctx -> ClaimCommand.groupListCommand(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "page")))
+                                                            )
+                                                            .then(
+                                                                    literal("all")
+                                                                            .executes(ctx -> ClaimCommand.groupListCommand(ctx.getSource(), 0))
+                                                            )
                                             )
                                             .then(
                                                     literal("join")
@@ -601,10 +609,10 @@ public class ClaimCommand {
                             .withColor(CommonColors.SOFT_RED)
             );
         } else {
-            if(page > totalPageCount) {
+            if(page > totalPageCount || page < 0) {
                 throw PAGE_OUT_OF_BOUNDS.create();
             }
-            if(page != -1) {
+            if(page != 0) {
                 positions = positions.subList((page - 1) * LIST_PAGE_SIZE, Math.min(page * LIST_PAGE_SIZE, positions.size()));
             }
 
@@ -633,7 +641,7 @@ public class ClaimCommand {
                 extraText.ifPresent(text::append);
             }
 
-            if(page != -1) {
+            if(page != 0) {
                 Component btnPrev = (page > 1) ? Component.literal("<<")
                         .withStyle(style -> {
                             Tag tag = ListChangePageAction.CODEC.encodeStart(NbtOps.INSTANCE, new ListChangePageAction(dimension, page - 1)).getOrThrow();
@@ -850,39 +858,77 @@ public class ClaimCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int groupListCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
-        // TODO pagination
-        ServerPlayer player = ctx.getSource().getPlayerOrException();
+    public static int groupListCommand(CommandSourceStack source, int page) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
 
-        GroupState groupState = GroupState.getState(ctx.getSource().getServer());
-
-        Collection<GroupComponent> groups = groupState.getGroups().stream()
+        GroupState groupState = GroupState.getState(source.getServer());
+        List<GroupComponent> groups = groupState.getGroups().stream()
                 .filter(group -> group.isMember(player) || Permissions.check(player, "cclaim.group.admin", PermissionLevel.ADMINS))
                 .toList();
+        int totalPageCount = Math.ceilDiv(groups.size(), LIST_PAGE_SIZE);
 
         MutableComponent text = Component.literal("");
         text.append(
                 Component.literal("--- Container Claim Groups (" + groups.size() + ") ---")
                         .withColor(CommonColors.HIGH_CONTRAST_DIAMOND)
         );
-        for(GroupComponent group : groups) {
-            String ownerName = getPlayerNameOrUuid(group.owner(), ctx.getSource().getServer());
-
-            text.append(Component.literal("\n  - "));
-            text.append(
-                    Component.literal(group.name())
-                            .withColor(CommonColors.GREEN)
-                            .withStyle(style -> style
-                                    .withHoverEvent(new HoverEvent.ShowText(Component.literal(ownerName + " (" + group.members().size() + ")")))
-                            )
-            );
-        }
 
         if(groups.isEmpty()) {
             text.append(Component.literal("\nThere are no groups (that you can see)").withColor(CommonColors.SOFT_RED));
+        } else {
+            if(page > totalPageCount || page < 0) {
+                throw PAGE_OUT_OF_BOUNDS.create();
+            }
+
+            if(page != 0) {
+                groups = groups.subList((page - 1) * LIST_PAGE_SIZE, Math.min(page * LIST_PAGE_SIZE, groups.size()));
+            }
+
+            for(GroupComponent group : groups) {
+                String ownerName = getPlayerNameOrUuid(group.owner(), source.getServer());
+
+                text.append(Component.literal("\n  - "));
+                text.append(
+                        Component.literal(group.name())
+                                .withColor(CommonColors.GREEN)
+                                .withStyle(style -> style
+                                        .withClickEvent(new ClickEvent.RunCommand("/cclaim group info " + group.name()))
+                                        .withHoverEvent(new HoverEvent.ShowText(Component.literal(ownerName + " (" + group.members().size() + ")")))
+                                )
+                );
+            }
+
+            if(page != 0) {
+                Component btnPrev = (page > 1) ? Component.literal("<<")
+                        .withStyle(style -> {
+                                    Tag tag = GroupListChangePageAction.CODEC.encodeStart(NbtOps.INSTANCE, new GroupListChangePageAction(page - 1)).getOrThrow();
+                                    return style
+                                            .withClickEvent(new ClickEvent.Custom(GroupListChangePageAction.IDENTIFIER, Optional.of(tag)))
+                                            .withHoverEvent(new HoverEvent.ShowText(Component.literal("Previous Page")));
+                                }
+                        ) : Component.literal("<<");
+                Component btnNext = (page + 1 <= totalPageCount) ? Component.literal(">>")
+                        .withStyle(style -> {
+                                    Tag tag = GroupListChangePageAction.CODEC.encodeStart(NbtOps.INSTANCE, new GroupListChangePageAction(page + 1)).getOrThrow();
+                                    return style
+                                            .withClickEvent(new ClickEvent.Custom(GroupListChangePageAction.IDENTIFIER, Optional.of(tag)))
+                                            .withHoverEvent(new HoverEvent.ShowText(Component.literal("Next Page")));
+                                }
+                        ) : Component.literal(">>");
+                text.append(
+                        Component.literal("\n----- ")
+                                .withColor(CommonColors.HIGH_CONTRAST_DIAMOND)
+                                .append(btnPrev)
+                                .append(Component.literal(" Page " + page + " of " + totalPageCount + " "))
+                                .append(btnNext)
+                                .append(" -----")
+                );
+            } else {
+                text.append(Component.literal("\n" + "-".repeat(30)).withColor(CommonColors.HIGH_CONTRAST_DIAMOND));
+            }
         }
 
-        ctx.getSource().sendSuccess(() -> text, false);
+        source.sendSuccess(() -> text, false);
 
         return Command.SINGLE_SUCCESS;
     }
@@ -977,5 +1023,12 @@ public class ClaimCommand {
                 ResourceKey.codec(Registries.DIMENSION).fieldOf("dimension").forGetter(ListChangePageAction::dimension),
                 Codec.INT.fieldOf("page").forGetter(ListChangePageAction::page)
         ).apply(instance, ListChangePageAction::new));
+    }
+
+    public record GroupListChangePageAction(int page) {
+        public static final Identifier IDENTIFIER = Identifier.fromNamespaceAndPath(ContainerClaimMod.MOD_ID, "group-list/change-page");
+        public static final Codec<GroupListChangePageAction> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                Codec.INT.fieldOf("page").forGetter(GroupListChangePageAction::page)
+        ).apply(instance, GroupListChangePageAction::new));
     }
 }

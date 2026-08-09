@@ -41,6 +41,19 @@ public abstract class ServerCommonPacketListenerImplMixin {
                         .ifError(error -> LOGGER.warn("Received invalid custom click action {}: {}", packet.id(), error)),
                 () -> LOGGER.warn("Received invalid custom click action {}: Missing Payload ", packet.id())
             );
+        } else if(ClaimCommand.GroupListChangePageAction.IDENTIFIER.equals(packet.id())) {
+            packet.payload().ifPresentOrElse(
+                    tag -> ClaimCommand.GroupListChangePageAction.CODEC.parse(NbtOps.INSTANCE, tag).ifSuccess(
+                            data -> {
+                                try {
+                                    ClaimCommand.groupListCommand(player.createCommandSourceStack(), data.page());
+                                } catch (CommandSyntaxException e) {
+                                    player.createCommandSourceStack().sendFailure(ComponentUtils.fromMessage(e.getRawMessage()));
+                                }
+                            }
+                    ).ifError(error -> LOGGER.warn("Received invalid custom click action {}: {}", packet.id(), error)),
+                    () -> LOGGER.warn("Received invalid custom click action {}: Missing Payload", packet.id())
+            );
         }
     }
 }
