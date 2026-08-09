@@ -58,14 +58,21 @@ public class ClaimCommand {
     private static final SimpleCommandExceptionType ALREADY_CLAIMED = new SimpleCommandExceptionType(new LiteralMessage("The container is already claimed!"));
     private static final SimpleCommandExceptionType PAGE_OUT_OF_BOUNDS = new SimpleCommandExceptionType(new LiteralMessage("Page out of bounds"));
 
-    private static final SimpleCommandExceptionType GROUP_ALREADY_EXISTS = new SimpleCommandExceptionType(new LiteralMessage("This group already exists"));
+    private static final DynamicCommandExceptionType GROUP_ALREADY_EXISTS = new DynamicCommandExceptionType(
+            groupName -> new LiteralMessage("The group " + groupName + " already exists")
+    );
     private static final SimpleCommandExceptionType GROUP_NAME_INVALID_CHARACTER = new SimpleCommandExceptionType(new LiteralMessage("Group names have to only contain lowercase letter, numbers and underscores"));
     private static final SimpleCommandExceptionType GROUP_NAME_INVALID_LENGTH = new SimpleCommandExceptionType(new LiteralMessage("Group names have to be between 3 and 16 characters long"));
     private static final SimpleCommandExceptionType GROUP_DOES_NOT_EXIST = new SimpleCommandExceptionType(new LiteralMessage("This group does not exist"));
     private static final DynamicCommandExceptionType GROUP_LIMIT_REACHED = new DynamicCommandExceptionType(
             limit -> new LiteralMessage("You are not allowed to create more than " + limit + " groups")
     );
-    private static final SimpleCommandExceptionType GROUP_NOT_TRUSTED = new SimpleCommandExceptionType(new LiteralMessage("The group is not trusted"));
+    private static final DynamicCommandExceptionType GROUP_ALREADY_TRUSTED = new DynamicCommandExceptionType(
+            groupName -> new LiteralMessage("The group " + groupName + " is already trusted")
+    );
+    private static final DynamicCommandExceptionType GROUP_NOT_TRUSTED = new DynamicCommandExceptionType(
+            groupName -> new LiteralMessage("The group " + groupName + " is not trusted")
+    );
     private static final SimpleCommandExceptionType ALREADY_GROUP_OWNER = new SimpleCommandExceptionType(new LiteralMessage("The player is already the owner of the group"));
 
 
@@ -98,7 +105,7 @@ public class ClaimCommand {
                             .then(
                                     literal("trust")
                                             .then(
-                                                    argument("targets", GameProfileArgument.gameProfile())
+                                                    argument("players", GameProfileArgument.gameProfile())
                                                             .executes(ClaimCommand::trustCommand)
                                             )
                                             .then(
@@ -113,7 +120,7 @@ public class ClaimCommand {
                             .then(
                                     literal("untrust")
                                             .then(
-                                                    argument("targets", GameProfileArgument.gameProfile())
+                                                    argument("players", GameProfileArgument.gameProfile())
                                                             .executes(ClaimCommand::untrustCommand)
                                             )
                                             .then(
@@ -214,7 +221,7 @@ public class ClaimCommand {
                                                                     argument("group", StringArgumentType.word())
                                                                             .suggests(GroupSuggestionProvider.owner())
                                                                             .then(
-                                                                                    argument("targets", GameProfileArgument.gameProfile())
+                                                                                    argument("players", GameProfileArgument.gameProfile())
                                                                                             .executes(ClaimCommand::groupJoinCommand)
                                                                             )
                                                             )
@@ -225,7 +232,7 @@ public class ClaimCommand {
                                                                     argument("group", StringArgumentType.word())
                                                                             .suggests(GroupSuggestionProvider.owner())
                                                                             .then(
-                                                                                    argument("targets", GameProfileArgument.gameProfile())
+                                                                                    argument("players", GameProfileArgument.gameProfile())
                                                                                             .executes(ClaimCommand::groupLeaveCommand)
                                                                             )
                                                             )
@@ -438,20 +445,24 @@ public class ClaimCommand {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         checkForOwnedClaim(claimAccess, player);
 
-        Collection<NameAndId> targets = GameProfileArgument.getGameProfiles(ctx, "targets");
+        Collection<NameAndId> players = GameProfileArgument.getGameProfiles(ctx, "players");
 
-        List<UUID> entries = new ArrayList<>();
-        for(NameAndId target : targets) {
-            entries.add(target.id());
-            ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Added " + target.name() + " as trusted player"), false);
+        List<UUID> uuids = new ArrayList<>();
+        for(NameAndId p : players) {
+            if(ClaimUtils.isTrusted(claimAccess, p.id())) {
+                ctx.getSource().sendFailure(Component.nullToEmpty(p.name() + " is already a trusted player"));
+            } else {
+                uuids.add(p.id());
+                ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Added " + p.name() + " as trusted player"), false);
+            }
         }
-        ClaimUtils.trust(claimAccess, entries);
+        ClaimUtils.trust(claimAccess, uuids);
 
-        if(targets.isEmpty()) {
-            ctx.getSource().sendSuccess(() -> Component.nullToEmpty("No targets found"), false);
+        if(players.isEmpty()) {
+            ctx.getSource().sendFailure(Component.nullToEmpty("No players found"));
         }
 
-        return targets.size();
+        return uuids.size();
     }
 
     private static int trustGroupCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
@@ -462,6 +473,10 @@ public class ClaimCommand {
         String groupName = StringArgumentType.getString(ctx, "group");
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
         GroupComponent group = getGroup(groupState, groupName);
+
+        if(ClaimUtils.isGroupTrusted(claimAccess, group)) {
+            throw GROUP_ALREADY_TRUSTED.create(group.name());
+        }
 
         ClaimUtils.trustGroup(claimAccess, group);
 
@@ -475,24 +490,24 @@ public class ClaimCommand {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         checkForOwnedClaim(claimAccess, player);
 
-        Collection<NameAndId> targets = GameProfileArgument.getGameProfiles(ctx, "targets");
+        Collection<NameAndId> players = GameProfileArgument.getGameProfiles(ctx, "players");
 
-        List<UUID> entries = new ArrayList<>();
-        for(NameAndId target : targets) {
-            if(ClaimUtils.isTrusted(claimAccess, target.id())) {
-                entries.add(target.id());
-                ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Removed " + target.name() + " as a trusted player"), false);
+        List<UUID> uuids = new ArrayList<>();
+        for(NameAndId p : players) {
+            if(ClaimUtils.isTrusted(claimAccess, p.id())) {
+                uuids.add(p.id());
+                ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Removed " + p.name() + " as a trusted player"), false);
             } else {
-                ctx.getSource().sendSuccess(() -> Component.nullToEmpty(target.name() + " was not trusted"), false);
+                ctx.getSource().sendFailure(Component.nullToEmpty(p.name() + " is not a trusted player"));
             }
         }
-        ClaimUtils.untrust(claimAccess, entries);
+        ClaimUtils.untrust(claimAccess, uuids);
 
-        if(entries.isEmpty()) {
-            ctx.getSource().sendSuccess(() -> Component.nullToEmpty("No player to untrust found"), false);
+        if(players.isEmpty()) {
+            ctx.getSource().sendFailure(Component.nullToEmpty("No players found"));
         }
 
-        return entries.size();
+        return uuids.size();
     }
 
     private static int untrustGroupCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
@@ -505,7 +520,7 @@ public class ClaimCommand {
         GroupComponent group = getGroup(groupState, groupName);
 
         if(!claimAccess.cclaims$getClaim().trustedGroups().contains(group.uuid())) {
-            throw GROUP_NOT_TRUSTED.create();
+            throw GROUP_NOT_TRUSTED.create(group.name());
         }
 
         ClaimUtils.untrustGroup(claimAccess, group);
@@ -724,7 +739,7 @@ public class ClaimCommand {
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
 
         if (groupState.getGroups().stream().anyMatch(g -> g.name().equals(groupName))) {
-            throw GROUP_ALREADY_EXISTS.create();
+            throw GROUP_ALREADY_EXISTS.create(groupName);
         }
 
         long currentCount = groupState.getGroups().stream()
@@ -883,15 +898,24 @@ public class ClaimCommand {
             throw PERMISSION_DENIED.create();
         }
 
-        Collection<NameAndId> gameProfiles = GameProfileArgument.getGameProfiles(ctx, "targets");
+        Collection<NameAndId> players = GameProfileArgument.getGameProfiles(ctx, "players");
 
-        groupState.modifyGroup(group.addMembers(gameProfiles.stream().map(NameAndId::id).toList()));
+        List<UUID> uuids = new ArrayList<>();
+        for(NameAndId p : players) {
+            if(group.isMember(p.id())) {
+                ctx.getSource().sendFailure(Component.nullToEmpty(p.name() + " is already in the group"));
+            } else {
+                uuids.add(p.id());
+                ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Added " + p.name() + " to the group"), false);
+            }
+        }
+        groupState.modifyGroup(group.addMembers(uuids));
 
-        for(NameAndId gameProfile : gameProfiles) {
-            ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Added " + gameProfile.name() + " to the group"), false);
+        if(players.isEmpty()) {
+            ctx.getSource().sendFailure(Component.nullToEmpty("No players found"));
         }
 
-        return gameProfiles.size();
+        return uuids.size();
     }
 
     private static int groupLeaveCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
@@ -905,21 +929,24 @@ public class ClaimCommand {
             throw PERMISSION_DENIED.create();
         }
 
-        Collection<NameAndId> gameProfiles = GameProfileArgument.getGameProfiles(ctx, "targets");
+        Collection<NameAndId> players = GameProfileArgument.getGameProfiles(ctx, "players");
 
-        groupState.modifyGroup(group.removeMembers(gameProfiles.stream().map(NameAndId::id).toList()));
-
-        int count = 0;
-        for(NameAndId gameProfile : gameProfiles) {
-            if(group.members().contains(gameProfile.id())) {
-                ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Removed " + gameProfile.name() + " from the group"), false);
-                count++;
+        List<UUID> uuids = new ArrayList<>();
+        for(NameAndId p : players) {
+            if(group.isMember(p.id())) {
+                uuids.add(p.id());
+                ctx.getSource().sendSuccess(() -> Component.nullToEmpty("Removed " + p.name() + " from the group"), false);
             } else {
-                ctx.getSource().sendSuccess(() -> Component.nullToEmpty(gameProfile.name() + " was not a member of the group"), false);
+                ctx.getSource().sendFailure(Component.nullToEmpty(p.name() + " is not a member of the group"));
             }
         }
+        groupState.modifyGroup(group.removeMembers(uuids));
 
-        return count;
+        if(players.isEmpty()) {
+            ctx.getSource().sendFailure(Component.nullToEmpty("No players found"));
+        }
+
+        return uuids.size();
     }
 
     private static int groupTransferCommand(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
