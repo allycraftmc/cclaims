@@ -2,6 +2,7 @@ package de.tert0.containerclaims.mixin;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import de.tert0.containerclaims.ClaimCommand;
+import de.tert0.containerclaims.ContainerClaimMod;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.chat.ComponentUtils;
 import net.minecraft.network.protocol.common.ServerboundCustomClickActionPacket;
@@ -18,10 +19,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ServerCommonPacketListenerImpl.class)
 public abstract class ServerCommonPacketListenerImplMixin {
-    @Shadow
-    @Final
-    private static Logger LOGGER;
-
     @Inject(method = "handleCustomClickAction", at = @At("TAIL"))
     void handleCustomClickAction(ServerboundCustomClickActionPacket packet, CallbackInfo ci) {
         //noinspection ConstantValue
@@ -38,8 +35,8 @@ public abstract class ServerCommonPacketListenerImplMixin {
                                 player.createCommandSourceStack().sendFailure(ComponentUtils.fromMessage(e.getRawMessage()));
                             }
                         })
-                        .ifError(error -> LOGGER.warn("Received invalid custom click action {}: {}", packet.id(), error)),
-                () -> LOGGER.warn("Received invalid custom click action {}: Missing Payload ", packet.id())
+                        .ifError(error -> ContainerClaimMod.LOGGER.warn("Received invalid custom click action {} from {}: {}", packet.id(), player.getPlainTextName(), error)),
+                () -> ContainerClaimMod.LOGGER.warn("Received invalid custom click action {} from {}: Missing Payload ", packet.id(), player.getPlainTextName())
             );
         } else if(ClaimCommand.GroupListChangePageAction.IDENTIFIER.equals(packet.id())) {
             packet.payload().ifPresentOrElse(
@@ -50,9 +47,9 @@ public abstract class ServerCommonPacketListenerImplMixin {
                                 } catch (CommandSyntaxException e) {
                                     player.createCommandSourceStack().sendFailure(ComponentUtils.fromMessage(e.getRawMessage()));
                                 }
-                            }
-                    ).ifError(error -> LOGGER.warn("Received invalid custom click action {}: {}", packet.id(), error)),
-                    () -> LOGGER.warn("Received invalid custom click action {}: Missing Payload", packet.id())
+                            })
+                            .ifError(error -> ContainerClaimMod.LOGGER.warn("Received invalid custom click action {} from {}: {}", packet.id(), player.getPlainTextName(), error)),
+                    () -> ContainerClaimMod.LOGGER.warn("Received invalid custom click action {} from {}: Missing Payload", packet.id(), player.getPlainTextName())
             );
         }
     }

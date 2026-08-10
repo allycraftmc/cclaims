@@ -16,11 +16,12 @@ import net.minecraft.util.CommonColors;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.entity.BlockEntityTypes;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Set;
 
 public class ContainerClaimMod implements ModInitializer {
-
     public static final String MOD_ID = "cclaims";
     public static final Identifier CLAIM_DATA_ID = Identifier.fromNamespaceAndPath(MOD_ID, "claim");
     // TODO Shulker boxes, Trapped Chest?, ...
@@ -44,6 +45,8 @@ public class ContainerClaimMod implements ModInitializer {
             // Not Containers
             BlockEntityTypes.BEACON
     );
+
+    public static final Logger LOGGER = LogManager.getLogger(ContainerClaimMod.MOD_ID);
 
     @Override
     public void onInitialize() {
