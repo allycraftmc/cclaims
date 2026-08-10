@@ -22,10 +22,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.ClickEvent;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.HoverEvent;
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.*;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -53,28 +50,17 @@ public class ClaimCommand {
     private static final SimpleCommandExceptionType NO_CONTAINER_FOCUSED = new SimpleCommandExceptionType(new LiteralMessage("You have to look at a container block"));
     private static final SimpleCommandExceptionType BLOCK_TYPE_NOT_SUPPORTED = new SimpleCommandExceptionType(new LiteralMessage("This block type is not supported"));
     private static final SimpleCommandExceptionType INTERNAL_ERROR = new SimpleCommandExceptionType(new LiteralMessage("Internal error. Please report this error"));
-    private static final SimpleCommandExceptionType NOT_CLAIMED = new SimpleCommandExceptionType(new LiteralMessage("The container is not claimed!"));
-    private static final SimpleCommandExceptionType NOT_OWNER = new SimpleCommandExceptionType(new LiteralMessage("The container is not yours!"));
-    private static final SimpleCommandExceptionType ALREADY_CLAIMED = new SimpleCommandExceptionType(new LiteralMessage("The container is already claimed!"));
+    private static final SimpleCommandExceptionType NOT_CLAIMED = new SimpleCommandExceptionType(new LiteralMessage("The container is not claimed"));
+    private static final SimpleCommandExceptionType NOT_OWNER = new SimpleCommandExceptionType(new LiteralMessage("The container is not owned by you"));
+    private static final SimpleCommandExceptionType ALREADY_CLAIMED = new SimpleCommandExceptionType(new LiteralMessage("The container is already claimed"));
     private static final SimpleCommandExceptionType PAGE_OUT_OF_BOUNDS = new SimpleCommandExceptionType(new LiteralMessage("Page out of bounds"));
 
-    private static final DynamicCommandExceptionType GROUP_ALREADY_EXISTS = new DynamicCommandExceptionType(
-            groupName -> new LiteralMessage("The group " + groupName + " already exists")
-    );
     private static final SimpleCommandExceptionType GROUP_NAME_INVALID_CHARACTER = new SimpleCommandExceptionType(new LiteralMessage("Group names have to only contain lowercase letter, numbers and underscores"));
     private static final SimpleCommandExceptionType GROUP_NAME_INVALID_LENGTH = new SimpleCommandExceptionType(new LiteralMessage("Group names have to be between 3 and 16 characters long"));
     private static final SimpleCommandExceptionType GROUP_DOES_NOT_EXIST = new SimpleCommandExceptionType(new LiteralMessage("This group does not exist"));
     private static final DynamicCommandExceptionType GROUP_LIMIT_REACHED = new DynamicCommandExceptionType(
             limit -> new LiteralMessage("You are not allowed to create more than " + limit + " groups")
     );
-    private static final DynamicCommandExceptionType GROUP_ALREADY_TRUSTED = new DynamicCommandExceptionType(
-            groupName -> new LiteralMessage("The group " + groupName + " is already trusted")
-    );
-    private static final DynamicCommandExceptionType GROUP_NOT_TRUSTED = new DynamicCommandExceptionType(
-            groupName -> new LiteralMessage("The group " + groupName + " is not trusted")
-    );
-    private static final SimpleCommandExceptionType ALREADY_GROUP_OWNER = new SimpleCommandExceptionType(new LiteralMessage("The player is already the owner of the group"));
-
 
     private static final SimpleCommandExceptionType PERMISSION_DENIED = new SimpleCommandExceptionType(new LiteralMessage("Permission denied"));
 
@@ -353,27 +339,27 @@ public class ClaimCommand {
         text.append("-".repeat(20) + "\n");
 
         if(!ClaimUtils.isClaimed(claimAccess)) {
-            text.append(Component.literal("This container is not claimed!").withColor(CommonColors.SOFT_RED));
+            text.append(Component.literal("This container is not claimed").withColor(CommonColors.SOFT_RED));
         } else if(!ClaimUtils.canUse(claimAccess, player) && !Permissions.check(player, "cclaim.info.admin", PermissionLevel.GAMEMASTERS)) {
-            text.append(Component.literal("This container is claimed!").withColor(CommonColors.SOFT_YELLOW));
+            text.append(Component.literal("This container is claimed").withColor(CommonColors.YELLOW));
         } else {
             text.append("Owner: ");
             text.append(
                     Component.literal(getPlayerNameOrUuid(claimAccess.cclaims$getClaim().owner(), ctx.getSource().getServer()))
-                            .withColor(CommonColors.GREEN)
+                            .withColor(TextColor.GOLD)
             );
             text.append("\n");
             text.append("Trusted: ");
 
             Collection<UUID> trustedUuids = claimAccess.cclaims$getClaim().trusted();
             if(trustedUuids.isEmpty()) {
-                text.append(Component.literal("¯\\_(ツ)_/¯").withColor(CommonColors.YELLOW));
+                text.append(Component.literal("None").withColor(CommonColors.YELLOW));
             } else {
                 for(UUID trustedUuid : trustedUuids) {
                     text.append(Component.literal("\n  - "));
                     text.append(
                             Component.literal(getPlayerNameOrUuid(trustedUuid, ctx.getSource().getServer()))
-                                    .withColor(CommonColors.SOFT_YELLOW)
+                                    .withColor(CommonColors.YELLOW)
                     );
                 }
             }
@@ -385,7 +371,7 @@ public class ClaimCommand {
             Collection<UUID> trustedGroupUUIDs = claimAccess.cclaims$getClaim().trustedGroups();
 
             if(trustedGroupUUIDs.isEmpty()) {
-                text.append(Component.literal("¯\\_(ツ)_/¯").withColor(CommonColors.YELLOW));
+                text.append(Component.literal("None").withColor(CommonColors.YELLOW));
             } else {
                 for(UUID trustedGroupUuid : trustedGroupUUIDs) {
                     text.append(Component.literal("\n  - "));
@@ -395,7 +381,7 @@ public class ClaimCommand {
                                     .findFirst()
                                     .map(group ->
                                             Component.literal(group.name())
-                                                    .withColor(CommonColors.SOFT_YELLOW)
+                                                    .withColor(CommonColors.YELLOW)
                                                     .withStyle(style -> style.withHoverEvent(new HoverEvent.ShowText(Component.literal(
                                                             getPlayerNameOrUuid(group.owner(), ctx.getSource().getServer()) + " (" + group.members().size() + ")"
                                                     ))))
@@ -417,7 +403,7 @@ public class ClaimCommand {
                         .format(claimAccess.cclaims$getClaim().timestamp());
 
                 text.append("\n");
-                text.append("Timestamp: " + formattedTimestamp);
+                text.append(Component.literal("Timestamp: ").append(Component.literal(formattedTimestamp).withColor(CommonColors.LIGHT_GRAY)));
             }
         }
 
@@ -434,7 +420,7 @@ public class ClaimCommand {
         }
 
         ClaimUtils.claim(claimAccess, player.getUUID(), player.level());
-        ctx.getSource().sendSuccess(() -> Component.literal("Claimed container"), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("Successfully claimed container").withColor(CommonColors.GREEN), false);
         return Command.SINGLE_SUCCESS;
     }
 
@@ -444,7 +430,7 @@ public class ClaimCommand {
         checkForOwnedClaim(claimAccess, player);
 
         ClaimUtils.unclaim(claimAccess, player.level());
-        ctx.getSource().sendSuccess(() -> Component.literal("Unclaimed container"), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("Successfully unclaimed container").withColor(CommonColors.GREEN), false);
         return Command.SINGLE_SUCCESS;
     }
 
@@ -458,10 +444,15 @@ public class ClaimCommand {
         List<UUID> uuids = new ArrayList<>();
         for(NameAndId p : players) {
             if(ClaimUtils.isTrusted(claimAccess, p.id())) {
-                ctx.getSource().sendFailure(Component.literal(p.name() + " is already a trusted player"));
+                ctx.getSource().sendFailure(Component.literal(p.name()).withColor(TextColor.GOLD).append(Component.literal(" is already a trusted player").withColor(CommonColors.SOFT_RED)));
             } else {
                 uuids.add(p.id());
-                ctx.getSource().sendSuccess(() -> Component.literal("Added " + p.name() + " as trusted player"), false);
+                ctx.getSource().sendSuccess(
+                        () -> Component.literal("Successfully added ").withColor(CommonColors.GREEN)
+                                .append(Component.literal(p.name()).withColor(TextColor.GOLD))
+                                .append(" as a trusted player"),
+                        false
+                );
             }
         }
         ClaimUtils.trust(claimAccess, uuids);
@@ -483,12 +474,19 @@ public class ClaimCommand {
         GroupComponent group = getGroup(groupState, groupName);
 
         if(ClaimUtils.isGroupTrusted(claimAccess, group)) {
-            throw GROUP_ALREADY_TRUSTED.create(group.name());
+            ctx.getSource().sendFailure(
+                    Component.literal(group.name()).withColor(TextColor.GOLD)
+                            .append(Component.literal(" is already a trusted group").withColor(CommonColors.SOFT_RED))
+            );
+        } else {
+            ClaimUtils.trustGroup(claimAccess, group);
+            ctx.getSource().sendSuccess(
+                    () -> Component.literal("Successfully added ").withColor(CommonColors.GREEN)
+                            .append(Component.literal(group.name()).withColor(TextColor.GOLD))
+                            .append(" as a trusted group"),
+                    false
+            );
         }
-
-        ClaimUtils.trustGroup(claimAccess, group);
-
-        ctx.getSource().sendSuccess(() -> Component.literal("Added " + group.name() + " as a trusted group"), false);
 
         return Command.SINGLE_SUCCESS;
     }
@@ -504,9 +502,17 @@ public class ClaimCommand {
         for(NameAndId p : players) {
             if(ClaimUtils.isTrusted(claimAccess, p.id())) {
                 uuids.add(p.id());
-                ctx.getSource().sendSuccess(() -> Component.literal("Removed " + p.name() + " as a trusted player"), false);
+                ctx.getSource().sendSuccess(
+                        () -> Component.literal("Successfully removed ").withColor(CommonColors.GREEN)
+                                .append(Component.literal(p.name()).withColor(TextColor.GOLD))
+                                .append(" as a trusted player"),
+                        false
+                );
             } else {
-                ctx.getSource().sendFailure(Component.literal(p.name() + " is not a trusted player"));
+                ctx.getSource().sendFailure(
+                        Component.literal(p.name()).withColor(TextColor.GOLD)
+                                .append(Component.literal(" is not a trusted player").withColor(CommonColors.SOFT_RED))
+                );
             }
         }
         ClaimUtils.untrust(claimAccess, uuids);
@@ -528,12 +534,19 @@ public class ClaimCommand {
         GroupComponent group = getGroup(groupState, groupName);
 
         if(!claimAccess.cclaims$getClaim().trustedGroups().contains(group.uuid())) {
-            throw GROUP_NOT_TRUSTED.create(group.name());
+            ctx.getSource().sendFailure(
+                    Component.literal(group.name()).withColor(TextColor.GOLD)
+                            .append(Component.literal(" is not a trusted group").withColor(CommonColors.SOFT_RED))
+            );
+        } else {
+            ClaimUtils.untrustGroup(claimAccess, group);
+            ctx.getSource().sendSuccess(
+                    () -> Component.literal("Successfully removed ").withColor(CommonColors.GREEN)
+                            .append(Component.literal(group.name()).withColor(TextColor.GOLD))
+                            .append(" as a trusted group"),
+                    false
+            );
         }
-
-        ClaimUtils.untrustGroup(claimAccess, group);
-
-        ctx.getSource().sendSuccess(() -> Component.literal("Removed " + group.name() + " as a trusted group"), false);
 
         return Command.SINGLE_SUCCESS;
     }
@@ -545,9 +558,17 @@ public class ClaimCommand {
         adminModeAccess.cclaims$setAdminMode(!adminModeAccess.cclaims$getAdminMode());
 
         if(adminModeAccess.cclaims$getAdminMode()) {
-            ctx.getSource().sendSuccess(() -> Component.literal("Enabled Container Claim Admin Mode"), true);
+            ctx.getSource().sendSuccess(
+                    () -> Component.literal("Set Container Claim Admin Mode to ").withColor(CommonColors.GREEN)
+                            .append(Component.literal("enabled").withColor(TextColor.DARK_GREEN)),
+                    true
+            );
         } else {
-            ctx.getSource().sendSuccess(() -> Component.literal("Disabled Container Claim Admin Mode"), true);
+            ctx.getSource().sendSuccess(
+                    () -> Component.literal("Set Container Claim Admin Mode to ").withColor(CommonColors.GREEN)
+                            .append(Component.literal("disabled").withColor(CommonColors.RED)),
+                    false
+            );
         }
 
         return Command.SINGLE_SUCCESS;
@@ -627,11 +648,13 @@ public class ClaimCommand {
 
                         String ownerName = getPlayerNameOrUuid(claimAccess.cclaims$getClaim().owner(), source.getServer());
                         extraText = Optional.of(
-                                Component.literal(" - " + ownerName)
-                                        .withColor(CommonColors.YELLOW)
-                                        .withStyle(style -> trustedNames.isEmpty() ? style :style.withHoverEvent(
-                                                new HoverEvent.ShowText(Component.literal(String.join("\n", trustedNames)))
-                                        ))
+                                Component.literal(" - ").append(
+                                        Component.literal(ownerName)
+                                                .withColor(TextColor.GOLD)
+                                                .withStyle(style -> trustedNames.isEmpty() ? style :style.withHoverEvent(
+                                                        new HoverEvent.ShowText(Component.literal(String.join("\n", trustedNames)))
+                                                ))
+                                )
                         );
                     }
                 }
@@ -649,7 +672,7 @@ public class ClaimCommand {
                                     .withClickEvent(new ClickEvent.Custom(ListChangePageAction.IDENTIFIER, Optional.of(tag)))
                                     .withHoverEvent(new HoverEvent.ShowText(Component.literal("Previous Page")));
                         }
-                        ) : Component.literal("<<");
+                        ) : Component.literal("<<").withColor(CommonColors.LIGHT_GRAY);
                 Component btnNext = (page + 1 <= totalPageCount) ? Component.literal(">>")
                         .withStyle(style -> {
                             Tag tag = ListChangePageAction.CODEC.encodeStart(NbtOps.INSTANCE, new ListChangePageAction(dimension, page + 1)).getOrThrow();
@@ -657,7 +680,7 @@ public class ClaimCommand {
                                     .withClickEvent(new ClickEvent.Custom(ListChangePageAction.IDENTIFIER, Optional.of(tag)))
                                     .withHoverEvent(new HoverEvent.ShowText(Component.literal("Next Page")));
                         }
-                        ) : Component.literal(">>");
+                        ) : Component.literal(">>").withColor(CommonColors.LIGHT_GRAY);
                 text.append(
                         Component.literal("\n----- ")
                                 .withColor(CommonColors.HIGH_CONTRAST_DIAMOND)
@@ -689,7 +712,7 @@ public class ClaimCommand {
 
             // Check Claim exists
             if(claimAccess == null || !ClaimUtils.isClaimed(claimAccess)) {
-                problems.add(new Pair<>(pos, Component.literal("Claim not found").withColor(CommonColors.RED)));
+                problems.add(new Pair<>(pos, Component.literal("Claim not found").withColor(CommonColors.SOFT_RED)));
                 continue;
             }
             ClaimComponent claim = claimAccess.cclaims$getClaim();
@@ -724,12 +747,17 @@ public class ClaimCommand {
             }
         }
 
-        ctx.getSource().sendSuccess(() -> Component.literal("Checked " + loadedPositions.size() + "/" + allPositions.size() + " positions"), false);
+        ctx.getSource().sendSuccess(
+                () -> Component.literal("Successfully checked ").withColor(CommonColors.GREEN)
+                        .append(Component.literal(loadedPositions.size() + " / " + allPositions.size()).withColor(TextColor.GOLD))
+                        .append(" positions"),
+                false
+        );
 
         if(problems.isEmpty()) {
             ctx.getSource().sendSuccess(() -> Component.literal("No problems found").withColor(CommonColors.GREEN), false);
         } else {
-            ctx.getSource().sendSuccess(() -> Component.literal(problems.size() + " problems found").withColor(CommonColors.RED), false);
+            ctx.getSource().sendSuccess(() -> Component.literal(problems.size() + " problems found").withColor(CommonColors.SOFT_RED), false);
             for(Pair<BlockPos, Component> entry : problems) {
                 ctx.getSource().sendSuccess(
                         () -> Component.literal("- ").append(getTextOfBlockPos(serverLevel, entry.getFirst(), false).withColor(CommonColors.GREEN)).append(": ").append(entry.getSecond()),
@@ -749,7 +777,11 @@ public class ClaimCommand {
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
 
         if (groupState.getGroups().stream().anyMatch(g -> g.name().equals(groupName))) {
-            throw GROUP_ALREADY_EXISTS.create(groupName);
+            ctx.getSource().sendFailure(
+                    Component.literal(groupName).withColor(TextColor.GOLD)
+                            .append(Component.literal(" already exists").withColor(CommonColors.SOFT_RED))
+            );
+            return 0;
         }
 
         long currentCount = groupState.getGroups().stream()
@@ -780,7 +812,11 @@ public class ClaimCommand {
 
         groupState.addGroup(group);
 
-        ctx.getSource().sendSuccess(() -> Component.literal("Successfully created group!").withColor(CommonColors.GREEN), false);
+        ctx.getSource().sendSuccess(
+                () -> Component.literal("Successfully created group ").withColor(CommonColors.GREEN)
+                        .append(Component.literal(group.name()).withColor(TextColor.GOLD)),
+                false
+        );
 
         return Command.SINGLE_SUCCESS;
     }
@@ -806,7 +842,11 @@ public class ClaimCommand {
 
         groupState.removeGroup(group);
 
-        ctx.getSource().sendSuccess(() -> Component.literal("Successfully removed group").withColor(CommonColors.GREEN), false);
+        ctx.getSource().sendSuccess(
+                () -> Component.literal("Successfully deleted group ").withColor(CommonColors.GREEN)
+                        .append(Component.literal(group.name()).withColor(TextColor.GOLD)),
+                false
+        );
 
         return Command.SINGLE_SUCCESS;
     }
@@ -825,12 +865,12 @@ public class ClaimCommand {
         MutableComponent text = Component.literal("");
 
         text.append(Component.literal("Container Claim Group Info\n").withColor(CommonColors.HIGH_CONTRAST_DIAMOND));
-        text.append("-".repeat(20) + "\n");
+        text.append("-".repeat(23) + "\n");
 
         text.append("Name: ");
         text.append(
                 Component.literal(group.name() + "\n")
-                        .withColor(CommonColors.BLUE)
+                        .withColor(CommonColors.GREEN)
                         .withStyle(style -> style.withHoverEvent(
                                 new HoverEvent.ShowText(Component.literal(group.uuid().toString()))
                         ))
@@ -838,7 +878,7 @@ public class ClaimCommand {
         text.append("Owner: ");
         text.append(
                 Component.literal(getPlayerNameOrUuid(group.owner(), ctx.getSource().getServer()) + "\n")
-                        .withColor(CommonColors.GREEN)
+                        .withColor(TextColor.GOLD)
         );
 
         text.append("Members: ");
@@ -852,7 +892,7 @@ public class ClaimCommand {
         }
 
         if(group.members().isEmpty()) {
-            text.append(Component.literal("¯\\_(ツ)_/¯").withColor(CommonColors.YELLOW));
+            text.append(Component.literal("None").withColor(CommonColors.YELLOW));
         }
 
         ctx.getSource().sendSuccess(() -> text, false);
@@ -898,6 +938,13 @@ public class ClaimCommand {
                                         .withHoverEvent(new HoverEvent.ShowText(Component.literal(ownerName + " (" + group.members().size() + ")")))
                                 )
                 );
+                source.getServer().services().nameToIdCache().get(group.owner()).ifPresent(nameAndId -> {
+                    text.append(
+                            Component.literal(" (")
+                                    .append(Component.literal(nameAndId.name()).withColor(TextColor.GOLD))
+                                    .append(")")
+                    );
+                });
             }
 
             if(page != 0) {
@@ -908,7 +955,7 @@ public class ClaimCommand {
                                             .withClickEvent(new ClickEvent.Custom(GroupListChangePageAction.IDENTIFIER, Optional.of(tag)))
                                             .withHoverEvent(new HoverEvent.ShowText(Component.literal("Previous Page")));
                                 }
-                        ) : Component.literal("<<");
+                        ) : Component.literal("<<").withColor(CommonColors.LIGHT_GRAY);
                 Component btnNext = (page + 1 <= totalPageCount) ? Component.literal(">>")
                         .withStyle(style -> {
                                     Tag tag = GroupListChangePageAction.CODEC.encodeStart(NbtOps.INSTANCE, new GroupListChangePageAction(page + 1)).getOrThrow();
@@ -916,7 +963,7 @@ public class ClaimCommand {
                                             .withClickEvent(new ClickEvent.Custom(GroupListChangePageAction.IDENTIFIER, Optional.of(tag)))
                                             .withHoverEvent(new HoverEvent.ShowText(Component.literal("Next Page")));
                                 }
-                        ) : Component.literal(">>");
+                        ) : Component.literal(">>").withColor(CommonColors.LIGHT_GRAY);
                 text.append(
                         Component.literal("\n----- ")
                                 .withColor(CommonColors.HIGH_CONTRAST_DIAMOND)
@@ -951,10 +998,18 @@ public class ClaimCommand {
         List<UUID> uuids = new ArrayList<>();
         for(NameAndId p : players) {
             if(group.isMember(p.id())) {
-                ctx.getSource().sendFailure(Component.literal(p.name() + " is already in the group"));
+                ctx.getSource().sendFailure(
+                        Component.literal(p.name()).withColor(TextColor.GOLD)
+                                .append(Component.literal(" is already a member of the group").withColor(CommonColors.SOFT_RED))
+                );
             } else {
                 uuids.add(p.id());
-                ctx.getSource().sendSuccess(() -> Component.literal("Added " + p.name() + " to the group"), false);
+                ctx.getSource().sendSuccess(
+                        () -> Component.literal("Successfully added ").withColor(CommonColors.GREEN)
+                                .append(Component.literal(p.name()).withColor(TextColor.GOLD))
+                                .append(" as a member to the group"),
+                        false
+                );
             }
         }
         groupState.modifyGroup(group.addMembers(uuids));
@@ -983,9 +1038,17 @@ public class ClaimCommand {
         for(NameAndId p : players) {
             if(group.isMember(p.id())) {
                 uuids.add(p.id());
-                ctx.getSource().sendSuccess(() -> Component.literal("Removed " + p.name() + " from the group"), false);
+                ctx.getSource().sendSuccess(
+                        () -> Component.literal("Successfully removed ").withColor(CommonColors.GREEN)
+                                .append(Component.literal(p.name()).withColor(TextColor.GOLD))
+                                .append(" as a member from the group"),
+                        false
+                );
             } else {
-                ctx.getSource().sendFailure(Component.literal(p.name() + " is not a member of the group"));
+                ctx.getSource().sendFailure(
+                        Component.literal(p.name()).withColor(TextColor.GOLD)
+                                .append(Component.literal(" is not a member of the group").withColor(CommonColors.SOFT_RED))
+                );
             }
         }
         groupState.modifyGroup(group.removeMembers(uuids));
@@ -1002,19 +1065,25 @@ public class ClaimCommand {
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
         GroupComponent group = getGroup(groupState, groupName);
 
-        ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+        ServerPlayer player = EntityArgument.getPlayer(ctx, "player");
 
-        if(group.owner().equals(target.getUUID())) {
-            throw ALREADY_GROUP_OWNER.create();
+        if(group.owner().equals(player.getUUID())) {
+            ctx.getSource().sendFailure(
+                    Component.literal(player.getPlainTextName()).withColor(TextColor.GOLD)
+                            .append(Component.literal(" is already the owner of the group ").withColor(CommonColors.SOFT_RED))
+                            .append(group.name())
+            );
+        } else {
+            groupState.modifyGroup(group.withOwner(player.getUUID()));
+
+            ctx.getSource().sendSuccess(
+                    () -> Component.literal("Successfully transferred group ").withColor(CommonColors.GREEN)
+                            .append(Component.literal(group.name()).withColor(TextColor.GOLD))
+                            .append(" to ")
+                            .append(player.getName().copy().withColor(TextColor.GOLD)),
+                    true
+            );
         }
-
-        groupState.modifyGroup(group.withOwner(target.getUUID()));
-
-        ctx.getSource().sendSuccess(
-                () -> Component.literal("Successfully transferred group " + group.name() + " to ")
-                        .append(target.getName()),
-                true
-        );
 
         return Command.SINGLE_SUCCESS;
     }
