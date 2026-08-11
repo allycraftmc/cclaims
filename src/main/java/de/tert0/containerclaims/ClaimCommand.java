@@ -238,7 +238,7 @@ public class ClaimCommand {
                                                                     argument("group", StringArgumentType.word())
                                                                             .suggests(GroupSuggestionProvider.owner())
                                                                             .then(
-                                                                                    argument("player", EntityArgument.player())
+                                                                                    argument("player", GameProfileArgument.gameProfile())
                                                                                             .executes(ClaimCommand::groupTransferCommand)
                                                                             )
                                                             )
@@ -246,6 +246,12 @@ public class ClaimCommand {
                             )
             );
         });
+    }
+
+    private static NameAndId getSingleGameProfileArgument(CommandContext<CommandSourceStack> ctx, final String name) throws CommandSyntaxException {
+        Collection<NameAndId> players = GameProfileArgument.getGameProfiles(ctx, name);
+        if(players.size() > 1) throw EntityArgument.ERROR_NOT_SINGLE_PLAYER.create();
+        return players.stream().findFirst().orElseThrow(EntityArgument.NO_PLAYERS_FOUND::create);
     }
 
     private static ClaimAccess getFocusedClaimAccess(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
@@ -901,11 +907,10 @@ public class ClaimCommand {
     }
 
     public static int groupListCommand(CommandSourceStack source, int page) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-
         GroupState groupState = GroupState.getState(source.getServer());
-        List<GroupComponent> groups = groupState.getGroups().stream()
-                .filter(group -> group.isMember(player) || Permissions.check(player, "cclaim.group.admin", PermissionLevel.ADMINS))
+        List<GroupComponent> groups;
+        groups = groupState.getGroups().stream()
+                .filter(group -> (source.getPlayer() != null && group.isMember(source.getPlayer())) || Permissions.check(source, "cclaim.group.admin", PermissionLevel.ADMINS))
                 .toList();
         int totalPageCount = Math.ceilDiv(groups.size(), LIST_PAGE_SIZE);
 
@@ -1065,22 +1070,22 @@ public class ClaimCommand {
         GroupState groupState = GroupState.getState(ctx.getSource().getServer());
         GroupComponent group = getGroup(groupState, groupName);
 
-        ServerPlayer player = EntityArgument.getPlayer(ctx, "player");
+        NameAndId player = getSingleGameProfileArgument(ctx, "player");
 
-        if(group.owner().equals(player.getUUID())) {
+        if(group.owner().equals(player.id())) {
             ctx.getSource().sendFailure(
-                    Component.literal(player.getPlainTextName()).withColor(TextColor.GOLD)
+                    Component.literal(player.name()).withColor(TextColor.GOLD)
                             .append(Component.literal(" is already the owner of the group ").withColor(CommonColors.SOFT_RED))
                             .append(group.name())
             );
         } else {
-            groupState.modifyGroup(group.withOwner(player.getUUID()));
+            groupState.modifyGroup(group.withOwner(player.id()));
 
             ctx.getSource().sendSuccess(
                     () -> Component.literal("Successfully transferred group ").withColor(CommonColors.GREEN)
                             .append(Component.literal(group.name()).withColor(TextColor.GOLD))
                             .append(" to ")
-                            .append(player.getName().copy().withColor(TextColor.GOLD)),
+                            .append(Component.literal(player.name()).withColor(TextColor.GOLD)),
                     true
             );
         }
