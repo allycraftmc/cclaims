@@ -1,10 +1,13 @@
+[Codeberg](https://codeberg.org/AllyCraft/cclaims)
+| [Github (mirror)](https://github.com/allycraftmc/cclaims)
+| [Modrinth](https://modrinth.com/mod/cclaims)
 # CClaims: A container claim mod for fabric
 Claims is a Fabric server-side mod to claim and protect container blocks (e.g. Chest, Barrels and Hoppers).
 
 This mod provides the `/cclaim` command to work with the claims.
 Permissions can be managed by [LuckPerms](https://github.com/LuckPerms/LuckPerms) or any other mod implementing the [fabric-permissions-api](https://github.com/lucko/fabric-permissions-api).
 
-**Features:**
+## Features
 - Supported Container Blocks: Chests, Copper Chests, Barrels, Shelves, Chiseled Book Shelves, Furnaces, Blast Furnaces, Smokers, Brewing Stands, Dispensers, Hoppers, Droppers, Crafters and Beacons
 - Prevents usage and destruction of claimed blocks by other players (except admin mode players)
   - Prevents destruction by explosions, headless pistons (aka. the bedrock breaking method) or the Ender dragon
